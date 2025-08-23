@@ -1,19 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="stylesheet" href="./css/style.css">
-	<meta charset="utf-8">
-	<title>雾化吸入氢氯酸</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人主页</title>
+    <!-- 引入 Tailwind CSS 以实现现代化设计 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts 的 Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 应用 Inter 字体到整个页面 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* 添加一个深色基础背景 */
+        }
+        /* 自定义背景过渡效果 */
+        #main-body {
+            transition: background-image 0.5s ease-in-out;
+        }
+        /* 卡片光晕和悬停效果 */
+        .profile-card {
+            position: relative;
+            background: rgba(17, 24, 39, 0.85); /* 深色半透明背景 */
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .profile-card:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 1.5rem; /* 匹配卡片圆角 */
+            padding: 1px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        .profile-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.2);
+        }
+    </style>
 </head>
-<body>
-	<div>
-		<img src="./images/3.png" alt="3.png">
-		<p>链接</p>
-		<p><button id="button1"><a href="https://space.bilibili.com/478859104">bilibili<a></button>
-		<p>邮箱</p>
-		<p>1318362209@qq.com</p>
-		<p>qinglvsuan@gmail.com</p>
-	</div>
+<body id="main-body" class="bg-cover bg-center bg-fixed">
+
+    <!-- 主体内容容器 -->
+    <main class="min-h-screen w-full flex items-center justify-center p-4">
+        
+        <!-- 全新设计的卡片 -->
+        <div class="profile-card w-full max-w-4xl mx-auto rounded-3xl shadow-2xl overflow-hidden">
+            <div class="md:flex">
+                <!-- 左侧：头像和姓名 -->
+                <div class="md:w-1/3 p-8 bg-black/20 text-center flex flex-col justify-center items-center">
+                    <img src="https://placehold.co/160x160/E2E8F0/4A5568?text=Avatar" 
+                         alt="个人头像" 
+                         class="w-40 h-40 rounded-full ring-4 ring-white/20 hover:ring-white/40 transition-all duration-300">
+                    <h1 class="text-4xl font-bold tracking-tight text-white mt-6">qinglvsuan</h1>
+                    <p class="text-lg text-white/60 mt-2">Digital Creator</p>
+                </div>
+
+                <!-- 右侧：简介和链接 -->
+                <div class="md:w-2/3 p-8">
+                    <h2 class="text-2xl font-bold text-white">关于我</h2>
+                    <p class="mt-4 text-lg text-white/70 leading-relaxed">
+                        这里是您的个人简介区域。您可以在这里介绍您的技能、项目经验或者兴趣爱好，让访问者更好地了解您。
+                    </p>
+
+                    <hr class="my-8 border-t border-white/10">
+
+                    <h2 class="text-2xl font-bold text-white">找到我</h2>
+                    <div class="mt-4 space-y-4">
+                        <!-- 链接 1: Bilibili -->
+                        <a href="https://space.bilibili.com/478859104" target="_blank" class="group flex items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
+                            <div class="w-10 h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-4">
+                                <!-- Bilibili Icon -->
+                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="18" font-weight="bold">B</text>
+                                </svg>
+                            </div>
+                            <span class="font-semibold text-white">Bilibili</span>
+                        </a>
+                        <!-- 链接 2: Pixiv -->
+                        <a href="https://www.pixiv.net/users/63464171" target="_blank" class="group flex items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
+                            <div class="w-10 h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-4">
+                                <!-- Pixiv Icon -->
+                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="18" font-weight="bold">P</text>
+                                </svg>
+                            </div>
+                            <span class="font-semibold text-white">Pixiv</span>
+                        </a>
+                        <!-- 链接 3: X -->
+                        <a href="https://x.com/qinglvsuan" target="_blank" class="group flex items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
+                            <div class="w-10 h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-4">
+                                <!-- X Icon -->
+                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="18" font-weight="bold">X</text>
+                                </svg>
+                            </div>
+                            <span class="font-semibold text-white">X (Twitter)</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 背景设置控件 -->
+    <div class="fixed bottom-4 right-4 bg-black/30 backdrop-blur-sm p-3 rounded-lg shadow-lg">
+        <div class="flex items-center space-x-2">
+            <input type="text" id="bg-url-input" placeholder="输入背景图片 URL..." class="bg-white/20 text-white placeholder-white/70 text-sm rounded-md px-3 py-2 w-64 focus:ring-2 focus:ring-blue-400 focus:outline-none transition">
+            <button id="change-bg-btn" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-md transition-colors duration-300">
+                更换
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const body = document.getElementById('main-body');
+            const bgUrlInput = document.getElementById('bg-url-input');
+            const changeBgBtn = document.getElementById('change-bg-btn');
+
+            const defaultBgUrl = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=2400&auto-format&fit=crop';
+
+            const setBackground = (url) => {
+                if (url) {
+                    body.style.backgroundImage = `url('${url}')`;
+                    localStorage.setItem('user-background-image', url);
+                }
+            };
+
+            const savedBgUrl = localStorage.getItem('user-background-image');
+            setBackground(savedBgUrl || defaultBgUrl);
+
+            changeBgBtn.addEventListener('click', () => {
+                const newUrl = bgUrlInput.value.trim();
+                if (newUrl) {
+                    const img = new Image();
+                    img.src = newUrl;
+                    img.onload = () => setBackground(newUrl);
+                    img.onerror = () => {
+                        const existingAlert = document.getElementById('custom-alert');
+                        if(existingAlert) existingAlert.remove();
+
+                        const alertBox = document.createElement('div');
+                        alertBox.id = 'custom-alert';
+                        alertBox.className = 'fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg';
+                        alertBox.innerText = '无法加载图片，请检查 URL。';
+                        document.body.appendChild(alertBox);
+                        setTimeout(() => alertBox.remove(), 3000);
+                    };
+                }
+            });
+            
+            bgUrlInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    changeBgBtn.click();
+                }
+            });
+        });
+    </script>
 </body>
 </html>
