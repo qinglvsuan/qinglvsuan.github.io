@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Subway Surfer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0f172a; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        #score-board { 
+            position: absolute; top: 20px; left: 20px;
+            font-size: 40px; font-weight: 900; color: white; 
+            text-shadow: 0 0 10px #ec4899, 2px 2px 0px #000; font-style: italic;
+        }
+        
+        #controls-hint {
+            position: absolute; bottom: 20px; right: 20px;
+            text-align: right; color: rgba(255,255,255,0.5); font-size: 14px; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 1px;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #game-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; z-index: 20; transition: opacity 0.3s;
+        }
+        
+        h1 { 
+            color: #22d3ee; margin: 0 0 10px 0; font-size: 60px; text-transform: uppercase; 
+            text-shadow: 0 0 20px #22d3ee; font-style: italic; letter-spacing: -2px;
+        }
+        
+        p { color: white; font-size: 24px; margin-bottom: 40px; }
+        
+        .btn {
+            background: linear-gradient(45deg, #ec4899, #8b5cf6); border: none; padding: 15px 40px;
+            color: white; font-size: 20px; font-weight: bold; border-radius: 50px; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 0 20px rgba(236, 72, 153, 0.4); text-transform: uppercase;
+        }
+        .btn:hover { transform: scale(1.1); filter: brightness(1.2); }
+        
+        .speed-line {
+            position: absolute; background: rgba(255,255,255,0.05); width: 2px; height: 100px;
+            animation: rain 0.5s linear infinite; z-index: -1;
+        }
+        @keyframes rain { from { transform: translateY(-100vh); } to { transform: translateY(100vh); } }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <div id="score-board">0</div>
+        <div id="controls-hint">
+            A / D : Move<br>
+            SPACE : Jump<br>
+            S / ↓ : Slide
+        </div>
+    </div>
+
+    <div id="game-overlay">
+        <h1 id="title-text">NEON RUN</h1>
+        <p id="status-text">Use [S] to Slide under the huge blocks!</p>
+        <button class="btn" id="action-btn">START GAME</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+
+        // --- 核心参数 ---
+        const CONFIG = {
+            initSpeed: 0.12,     
+            maxSpeed: 0.7,
+            speedInc: 0.00001,
+            laneWidth: 2.2,
+            // 滞空物理
+            jumpForce: 0.15,     
+            gravity: 0.006,      
+            slideTime: 1000      
+        };
+
+        // --- 1. 场景 ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 3.5, 7);
+        camera.lookAt(0, 0.5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // 灯光
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7)); 
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // --- 2. 材质 ---
+        function createGridTexture() {
+            const c = document.createElement('canvas'); c.width=512; c.height=512;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,512,512);
+            ctx.strokeStyle='#ec4899'; ctx.lineWidth=4; ctx.strokeRect(0,0,512,512);
+            ctx.strokeStyle='rgba(34,211,238,0.3)'; ctx.lineWidth=2;
+            for(let i=64; i<512; i+=64){ctx.moveTo(i,0);ctx.lineTo(i,512);ctx.moveTo(0,i);ctx.lineTo(512,i);}
+            ctx.stroke();
+            const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping;
+            return t;
+        }
+        
+        function createHazardTexture() {
+            const c=document.createElement('canvas'); c.width=64; c.height=64;
+            const ctx=c.getContext('2d');
+            ctx.fillStyle='#fbbf24'; ctx.fillRect(0,0,64,64);
+            ctx.fillStyle='#000'; 
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(32,0); ctx.lineTo(0,32); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(32,64); ctx.lineTo(64,64); ctx.lineTo(64,32); ctx.fill();
+            return new THREE.CanvasTexture(c);
+        }
+
+        // --- 3. 对象 ---
+        const floorTex = createGridTexture(); 
+        floorTex.repeat.set(10, 40); 
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 400), new THREE.MeshPhongMaterial({ map: floorTex }));
+        ground.rotation.x = -Math.PI/2; 
+        ground.position.z = -150; 
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const playerGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        const playerMat = new THREE.MeshPhongMaterial({ color: 0x22d3ee });
+        const player = new THREE.Mesh(playerGeo, playerMat);
+        player.position.y = 0.4; player.castShadow = true;
+        scene.add(player);
+
+        // 变量
+        let lanes = [-CONFIG.laneWidth, 0, CONFIG.laneWidth];
+        let currentLane = 1; 
+        let playerSpeedZ = CONFIG.initSpeed;
+        let score = 0;
+        let isRunning = false;
+        let isGameOver = false;
+        
+        // 动作
+        let isJumping = false;
+        let isSliding = false;
+        let slideTimer = null;
+        let verticalVelocity = 0;
+        
+        // 障碍物
+        const obstacleMat = new THREE.MeshPhongMaterial({ map: createHazardTexture() });
+        let obstacles = [];
+
+        function spawnObstacle() {
+            if (!isRunning || isGameOver) return;
+
+            let spawnChance = 0.5 + (playerSpeedZ * 0.3); 
+            const count = Math.random() > spawnChance ? 1 : 2;
+            let availableLanes = [0, 1, 2].sort(() => Math.random() - 0.5);
+            let spawnLanes = availableLanes.slice(0, count);
+
+            spawnLanes.forEach(laneIdx => {
+                const typeRnd = Math.random();
+                const obsGroup = new THREE.Group();
+                let hitBoxSize = new THREE.Vector3(1.6, 0.8, 0.5);
+                let hitBoxY = 0.4;
+
+                if (typeRnd < 0.4) {
+                    // [矮墙 Low]
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 0.5), obstacleMat);
+                    mesh.position.y = 0.4; mesh.castShadow = true;
+                    obsGroup.add(mesh);
+                    hitBoxY = 0.4;
+                } else if (typeRnd < 0.75) {
+                    // [高墙 Tall]
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4, 0.5), obstacleMat);
+                    mesh.position.y = 2.0; mesh.castShadow = true;
+                    obsGroup.add(mesh);
+                    hitBoxSize.y = 4; hitBoxY = 2.0;
+                } else {
+                    // [悬浮板 Flying] - 巨型悬浮石
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.5, 0.5), obstacleMat);
+                    mesh.position.y = 2.85; // 底部离地1.1
+                    mesh.castShadow = true;
+                    obsGroup.add(mesh);
+                    
+                    // 支柱
+                    const pMat = new THREE.MeshBasicMaterial({color:0x555555});
+                    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.1), pMat); p1.position.set(-0.7, 0.55, 0); obsGroup.add(p1);
+                    const p2 = p1.clone(); p2.position.set(0.7, 0.55, 0); obsGroup.add(p2);
+
+                    hitBoxSize = new THREE.Vector3(1.6, 3.5, 0.5);
+                    hitBoxY = 2.85;
+                }
+
+                obsGroup.position.set(lanes[laneIdx], 0, player.position.z - 100 - Math.random()*20);
+                obsGroup.userData = { 
+                    box: new THREE.Box3(), 
+                    size: hitBoxSize, 
+                    yOffset: hitBoxY 
+                };
+                scene.add(obsGroup);
+                obstacles.push(obsGroup);
+            });
+
+            const nextSpawn = Math.max(700, 2500 / (playerSpeedZ * 10));
+            setTimeout(spawnObstacle, nextSpawn);
+        }
+
+        // --- 4. 控制 ---
+        function switchLane(dir) {
+            if (dir === 'left' && currentLane > 0) currentLane--;
+            if (dir === 'right' && currentLane < 2) currentLane++;
+        }
+
+        function jump() {
+            if (!isJumping && !isSliding) {
+                isJumping = true;
+                verticalVelocity = CONFIG.jumpForce;
+            }
+        }
+
+        function slide() {
+            if (!isSliding && !isJumping) {
+                isSliding = true;
+                player.material.color.setHex(0xffff00);
+                if(slideTimer) clearTimeout(slideTimer);
+                slideTimer = setTimeout(() => {
+                    isSliding = false;
+                    player.material.color.setHex(0x22d3ee);
+                }, CONFIG.slideTime);
+            } else if (isJumping) {
+                verticalVelocity = -CONFIG.jumpForce * 1.5; 
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (isGameOver && e.code === 'Space') location.reload();
+            if (!isRunning) return;
+            switch(e.key) {
+                case 'a': case 'ArrowLeft': switchLane('left'); break;
+                case 'd': case 'ArrowRight': switchLane('right'); break;
+                case 'w': case 'ArrowUp': case ' ': jump(); break;
+                case 's': case 'ArrowDown': slide(); break;
+            }
+        });
+
+        // --- 5. 循环 ---
+        const playerBox = new THREE.Box3();
+        
+        for(let i=0; i<20; i++) {
+            const d = document.createElement('div');
+            d.className = 'speed-line';
+            d.style.left = Math.random()*100+'%';
+            d.style.animationDuration = (Math.random()*0.5+0.3)+'s';
+            document.body.appendChild(d);
+        }
+
+        function update() {
+            requestAnimationFrame(update);
+            if (!isRunning || isGameOver) return;
+
+            if(playerSpeedZ < CONFIG.maxSpeed) playerSpeedZ += CONFIG.speedInc;
+            player.position.z -= playerSpeedZ;
+            
+            camera.position.z = player.position.z + 7;
+            camera.position.x += (player.position.x - camera.position.x) * 0.1; 
+            ground.position.z = player.position.z - 150;
+            
+            // 修复：反转纹理滚动方向 (+=)
+            floorTex.offset.y += playerSpeedZ * 0.1;
+
+            const targetX = lanes[currentLane];
+            player.position.x += (targetX - player.position.x) * 0.15;
+            player.rotation.z = (player.position.x - targetX) * -0.3;
+
+            // 跳跃
+            if (isJumping) {
+                player.position.y += verticalVelocity;
+                verticalVelocity -= CONFIG.gravity;
+                if (player.position.y <= 0.4) {
+                    player.position.y = 0.4;
+                    isJumping = false;
+                    verticalVelocity = 0;
+                    player.rotation.x = 0;
+                } else {
+                    player.rotation.x -= 0.1;
+                }
+            } else {
+                player.position.y = 0.4;
+                player.rotation.x -= playerSpeedZ;
+            }
+
+            // 下滑
+            if (isSliding) {
+                player.scale.set(1.2, 0.5, 1.2); 
+                if(!isJumping) player.position.y = 0.2; 
+            } else {
+                player.scale.set(1, 1, 1);
+            }
+
+            playerBox.setFromObject(player);
+            playerBox.expandByScalar(-0.15);
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let grp = obstacles[i];
+                if (grp.position.z > player.position.z + 5) {
+                    scene.remove(grp);
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    document.getElementById('score-board').innerText = score;
+                    continue;
+                }
+
+                const center = new THREE.Vector3(grp.position.x, grp.userData.yOffset, grp.position.z);
+                grp.userData.box.setFromCenterAndSize(center, grp.userData.size);
+                grp.userData.box.expandByScalar(-0.05); 
+
+                if (playerBox.intersectsBox(grp.userData.box)) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            obstacles.forEach(o => scene.remove(o));
+            obstacles = [];
+            score = 0;
+            playerSpeedZ = CONFIG.initSpeed;
+            currentLane = 1;
+            player.position.set(0, 0.4, 0);
+            document.getElementById('score-board').innerText = 0;
+            
+            isRunning = true;
+            isGameOver = false;
+            
+            document.getElementById('game-overlay').style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('game-overlay').style.display = 'none';
+                spawnObstacle();
+            }, 300);
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            isRunning = false;
+            document.getElementById('title-text').innerText = "CRASHED!";
+            document.getElementById('status-text').innerText = "Score: " + score;
+            document.getElementById('action-btn').innerText = "TRY AGAIN";
+            document.getElementById('game-overlay').style.display = 'flex';
+            setTimeout(() => document.getElementById('game-overlay').style.opacity = 1, 50);
+        }
+
+        document.getElementById('action-btn').addEventListener('click', startGame);
+        update();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

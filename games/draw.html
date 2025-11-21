@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Drawing Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: white; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        canvas { background: white; cursor: crosshair; border-radius: 8px; touch-action: none; }
+        .tool-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
+        .tool-btn.active { transform: scale(1.2); border-color: white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-3xl p-4 flex flex-col items-center h-full">
+        <div class="flex justify-between w-full items-center mb-4 bg-slate-800 p-3 rounded-xl shadow-lg">
+            <div class="flex gap-2 items-center">
+                <div class="tool-btn bg-black active" onclick="setColor('black', this)"></div>
+                <div class="tool-btn bg-red-500" onclick="setColor('#ef4444', this)"></div>
+                <div class="tool-btn bg-blue-500" onclick="setColor('#3b82f6', this)"></div>
+                <div class="tool-btn bg-green-500" onclick="setColor('#22c55e', this)"></div>
+                <div class="tool-btn bg-yellow-400" onclick="setColor('#facc15', this)"></div>
+                <div class="h-6 w-px bg-slate-600 mx-2"></div>
+                <input type="color" id="colorPicker" class="w-8 h-8 rounded cursor-pointer" onchange="setColor(this.value, null)">
+            </div>
+            
+            <div class="flex gap-4 items-center">
+                <input type="range" min="1" max="20" value="5" class="w-24" id="lineWidth" onchange="lineWidth=this.value">
+                <button onclick="setColor('white', null)" class="text-slate-300 hover:text-white text-sm font-bold">Eraser</button>
+                <button onclick="clearCanvas()" class="text-red-400 hover:text-red-300 text-sm font-bold">Clear</button>
+                <button onclick="download()" class="bg-violet-600 hover:bg-violet-500 px-3 py-1 rounded text-xs font-bold">Save</button>
+            </div>
+        </div>
+
+        <div class="relative flex-1 w-full flex justify-center items-center">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let strokeColor = 'black';
+        let lineWidth = 5;
+
+        function resize() {
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function start(e) {
+            isDrawing = true;
+            [lastX, lastY] = getPos(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const [x, y] = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            [lastX, lastY] = [x, y];
+        }
+
+        function stop() {
+            isDrawing = false;
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return [clientX - rect.left, clientY - rect.top];
+        }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mouseout', stop);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+        canvas.addEventListener('touchend', stop);
+
+        function setColor(color, btn) {
+            strokeColor = color;
+            if(btn) {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        }
+
+        function clearCanvas() {
+            if(confirm('Clear drawing?')) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function download() {
+            const link = document.createElement('a');
+            link.download = 'my-drawing.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

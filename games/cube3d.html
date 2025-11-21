@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Interactive Cube</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; }
+        canvas { display: block; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; color: #a855f7; font-family: sans-serif; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="info">Drag to spin the cube!</div>
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+        import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
+
+        // 1. 场景与相机
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a); // 深蓝背景
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // 2. 渲染器
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 3. 控制器 (允许鼠标拖动)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // 4. 创建一个立方体
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        // 使用法线材质，让颜色随角度变化，很有科技感
+        const material = new THREE.MeshNormalMaterial(); 
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        // 添加一些霓虹线框
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 }); // 粉色线框
+        const wireframe = new THREE.LineSegments(edges, lineMaterial);
+        cube.add(wireframe);
+
+        // 5. 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            // 自动缓慢旋转
+            cube.rotation.x += 0.002;
+            cube.rotation.y += 0.005;
+            controls.update(); // 更新控制器
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 窗口大小自适应
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

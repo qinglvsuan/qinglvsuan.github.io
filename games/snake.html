@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Snake</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: sans-serif; user-select: none; overflow: hidden; }
+        #game-canvas { background-color: #1e293b; border: 2px solid #8b5cf6; box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); border-radius: 12px; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen p-4">
+    <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500 mb-2 animate-pulse">NEON SNAKE</h2>
+    <div class="text-sm text-slate-400 mb-4 font-mono">Score: <span id="score-val" class="text-pink-400 font-bold text-lg">0</span></div>
+    
+    <div class="relative">
+        <canvas id="game-canvas" width="400" height="400"></canvas>
+        <div id="start-overlay" class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-xl cursor-pointer">
+            <p class="text-purple-300 text-xl font-bold mb-2">Click to Start</p>
+            <p class="text-slate-400 text-sm">Use WASD or Arrow Keys</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreVal = document.getElementById('score-val');
+        const startOverlay = document.getElementById('start-overlay');
+
+        let snake, food, dx, dy, score, gameInterval;
+        let isRunning = false;
+        const gridSize = 20; // 20x20 grid
+        const tileCount = canvas.width / gridSize; // 20
+
+        const drawRect = (x, y, color, shadow) => {
+            ctx.fillStyle = color; ctx.shadowBlur = shadow ? 15 : 0; ctx.shadowColor = shadow || color;
+            // 留1px边距让网格显现
+            ctx.fillRect(x * gridSize + 1, y * gridSize + 1, gridSize - 2, gridSize - 2);
+            ctx.shadowBlur = 0;
+        };
+
+        const init = () => {
+            snake = [{x: 10, y: 10}]; food = {x: 5, y: 5};
+            dx = 0; dy = 0; score = 0; scoreVal.innerText = 0;
+            placeFood(); isRunning = false; startOverlay.style.display = 'flex';
+            if(gameInterval) clearInterval(gameInterval);
+            draw();
+        };
+
+        const placeFood = () => {
+            food.x = Math.floor(Math.random() * tileCount);
+            food.y = Math.floor(Math.random() * tileCount);
+            if(snake.some(part => part.x === food.x && part.y === food.y)) placeFood();
+        };
+
+        const update = () => {
+            if(!isRunning) return;
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            // 穿墙
+            if(head.x < 0) head.x = tileCount - 1; if(head.x >= tileCount) head.x = 0;
+            if(head.y < 0) head.y = tileCount - 1; if(head.y >= tileCount) head.y = 0;
+            // 撞自己
+            if(dx!==0 || dy!==0) { if(snake.some(part => part.x === head.x && part.y === head.y)) { init(); return; }}
+            
+            snake.unshift(head);
+            if(head.x === food.x && head.y === food.y) { score += 10; scoreVal.innerText = score; placeFood(); } 
+            else { snake.pop(); }
+            draw();
+        };
+
+        const draw = () => {
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height); // 清屏
+            // 画食物 (粉色霓虹)
+            drawRect(food.x, food.y, '#ec4899', '#ec4899');
+            // 画蛇 (紫->青渐变)
+            snake.forEach((part, i) => {
+                const color = i === 0 ? '#d946ef' : (i % 2 === 0 ? '#a855f7' : '#8b5cf6'); // 头是亮紫，身体交替
+                drawRect(part.x, part.y, color, i===0 ? '#d946ef' : null);
+            });
+        };
+
+        // 控制
+        document.addEventListener('keydown', e => {
+            if(!isRunning && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
+                isRunning = true; startOverlay.style.display = 'none';
+                // 速度设置在这里：200ms (数字越大越慢)
+                gameInterval = setInterval(update, 200); 
+            }
+            switch(e.key) {
+                case 'ArrowUp': case 'w': if(dy !== 1) { dx=0; dy=-1; } break;
+                case 'ArrowDown': case 's': if(dy !== -1) { dx=0; dy=1; } break;
+                case 'ArrowLeft': case 'a': if(dx !== 1) { dx=-1; dy=0; } break;
+                case 'ArrowRight': case 'd': if(dx !== -1) { dx=1; dy=0; } break;
+            }
+        });
+        startOverlay.addEventListener('click', () => {
+            if(!isRunning) { isRunning = true; startOverlay.style.display = 'none'; dx=1; dy=0; gameInterval = setInterval(update, 200); }
+        });
+
+        init(); // 启动
+    </script>
+</body>
+</html>

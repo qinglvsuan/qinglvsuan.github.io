@@ -3,110 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>个人主页</title>
-    <!-- 引入 Tailwind CSS 以实现现代化设计 -->
+    <title>qinglvsuan | 个人主页 & 游戏中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Google Fonts 的 Inter 字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* 应用 Inter 字体到整个页面 */
+        /* --- CSS 变量定义 --- */
+        :root {
+            --primary: #ec4899;
+            --primary-hover: #db2777;
+            --glass-bg: rgba(25, 15, 35, 0.65);
+            --text-grad: linear-gradient(to right, #ec4899, #d946ef, #8b5cf6);
+            --glow-color: rgba(236, 72, 153, 0.5);
+            --border-color: rgba(255, 255, 255, 0.08);
+            
+            /* 动态卡片变量 */
+            --card-hover-bg: rgba(236, 72, 153, 0.1);
+            --card-hover-border: rgba(236, 72, 153, 0.3);
+            --text-highlight: #f9a8d4;
+        }
+
+        /* --- 全局设置 --- */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #111827; /* 添加一个深色基础背景 */
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
         }
-        /* 自定义背景过渡效果 */
-        #main-body {
-            transition: background-image 0.5s ease-in-out;
+
+        /* --- 动态背景层 --- */
+        #bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            background-image: url('images/2.png'); 
+            transition: all 0.6s ease-in-out;
         }
-        /* 卡片光晕和悬停效果 */
-        .profile-card {
-            position: relative;
-            background: rgba(17, 24, 39, 0.3); /* 深色半透明背景 */
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-        .profile-card:before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 1.5rem; /* 匹配卡片圆角 */
-            padding: 1px;
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-            -webkit-mask: 
-                linear-gradient(#fff 0 0) content-box, 
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
+        #bg-layer.is-blurred { filter: blur(15px); transform: scale(1.1); }
+
+        /* --- 遮罩层 --- */
+        #overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.2) 0%, rgba(10, 5, 20, 0.8) 100%);
             pointer-events: none;
         }
-        .profile-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.2);
+
+        /* --- 玻璃卡片 --- */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+            transition: background 0.5s ease;
         }
+
+        /* --- 动态流光字 --- */
+        .text-dynamic-gradient {
+            background: var(--text-grad);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-size: 200% auto; animation: gradientMove 5s ease infinite;
+        }
+        @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+        .animate-fade-up { opacity: 0; transform: translateY(40px); animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        /* --- 设置面板 --- */
+        .settings-panel {
+            bottom: 6rem; right: 1.5rem;
+            transform: translateY(150%); visibility: hidden; opacity: 0;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 110;
+        }
+        .settings-panel.active { transform: translateY(0); visibility: visible; opacity: 1; }
+        
+        /* --- 动态控件颜色 --- */
+        .toggle-checkbox:checked { right: 0; border-color: var(--primary); }
+        .toggle-checkbox:checked + .toggle-label { background-color: var(--primary); }
+        
+        /* --- 游戏大厅 --- */
+        #game-center-modal { display: none; opacity: 0; transition: opacity 0.3s ease; z-index: 120; }
+        #game-center-modal.open { display: flex; opacity: 1; }
+        
+        .game-card-hover:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- 按钮样式 --- */
+        .btn-primary { background-color: var(--primary); color: white; transition: all 0.2s; }
+        .btn-primary:hover { filter: brightness(1.1); }
+        
+        .icon-btn {
+            color: #e2e8f0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;
+        }
+        .icon-btn:hover {
+            background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 0 15px var(--glow-color);
+        }
+
+        /* --- 动态卡片悬停 (AI Card) --- */
+        .card-theme-active { transition: all 0.3s ease; }
+        .card-theme-active:hover { background-color: var(--card-hover-bg); border-color: var(--card-hover-border); }
+        .card-theme-active:hover .theme-text { color: var(--text-highlight); }
     </style>
 </head>
-<body id="main-body" class="bg-cover bg-center bg-fixed">
+<body class="text-slate-200 antialiased flex items-center justify-center">
 
-    <!-- 主体内容容器 -->
-    <main class="min-h-screen w-full flex items-center justify-center p-4">
-        
-        <!-- 全新设计的卡片 -->
-        <div class="profile-card w-full max-w-4xl mx-auto rounded-3xl shadow-2xl overflow-hidden">
-            <div class="md:flex">
-                <!-- 左侧：头像和姓名 -->
-                <div class="md:w-1/3 p-4 md:p-8 bg-black/20 text-center flex flex-col justify-center items-center">
-                    <img src="images/3.png" 
-                         alt="个人头像" 
-                         class="w-24 h-24 md:w-40 md:h-40 rounded-full ring-4 ring-white/20 hover:ring-white/40 transition-all duration-300">
-                    <h1 class="text-2xl md:text-4xl font-bold tracking-tight text-white mt-4 md:mt-6">qinglvsuan</h1>
+    <div id="bg-layer"></div>
+    <div id="overlay-layer"></div>
+
+    <main class="w-full flex items-center justify-center p-4 md:p-8 z-10">
+        <div class="glass-card w-full max-w-4xl rounded-3xl overflow-hidden animate-fade-up flex flex-col md:flex-row relative">
+            
+            <div class="md:w-2/5 relative group overflow-hidden flex flex-col items-center justify-center p-10 md:p-12 text-center border-b md:border-b-0 md:border-r border-white/10" 
+                 style="background: rgba(0,0,0,0.25)">
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" 
+                     style="background: radial-gradient(circle at center, var(--glow-color) 0%, transparent 70%); opacity: 0.15;"></div>
+                <div class="relative mb-8">
+                    <div class="absolute -inset-3 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 animate-pulse" 
+                         style="background: var(--text-grad);"></div>
+                    <img src="images/3.png" alt="Avatar" class="relative w-32 h-32 md:w-36 md:h-36 rounded-full border-[3px] border-white/20 object-cover shadow-2xl transform group-hover:scale-105 transition-transform duration-500 z-10">
+                </div>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-dynamic-gradient mb-3 relative z-10">qinglvsuan</h1>
+                <p class="text-sm text-slate-400 uppercase tracking-widest font-medium relative z-10">Personal Space</p>
+            </div>
+
+            <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center bg-white/5">
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center uppercase tracking-wider opacity-90">About Me</h2>
+                    <p class="text-lg text-slate-300 leading-relaxed font-light italic relative pl-4 border-l-2" style="border-color: var(--primary)">
+                        "只要活得够久，好事就会发生吗"
+                    </p>
                 </div>
 
-                <!-- 右侧：简介和链接 -->
-                <div class="md:w-2/3 p-4 md:p-8">
-                    <h2 class="text-xl md:text-2xl font-bold text-white">关于我</h2>
-                    <p class="mt-2 md:mt-4 text-base md:text-lg text-white/70 leading-relaxed">
-                        只要活得够久，好事就会发生吗
-                    </p>
-
-                    <hr class="my-6 md:my-8 border-t border-white/10">
-
-                    <h2 class="text-xl md:text-2xl font-bold text-white">找到我</h2>
-                    <div class="mt-4 space-y-3">
-                        <!-- 链接 1: Bilibili -->
-                        <a href="https://space.bilibili.com/478859104" target="_blank" class="group flex items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
-                            <div class="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-3 md:mr-4">
-                                <!-- Bilibili Icon -->
-                                <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="16" md:font-size="18" font-weight="bold">B</text>
-                                </svg>
+                <div>
+                    <h2 class="text-lg font-semibold text-white mb-5 flex items-center uppercase tracking-wider opacity-90">Explore</h2>
+                    <div class="flex flex-col gap-3">
+                        
+                        <a href="http://ai.qinglvsuan.qzz.io" target="_blank" class="group flex items-center p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 card-theme-active">
+                            <div class="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all" style="background: var(--text-grad)">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                             </div>
-                            <span class="font-semibold text-white text-sm md:text-base">Bilibili</span>
+                            <span class="ml-4 text-lg font-bold text-slate-200 theme-text transition-colors">AI Portal</span>
+                            <span class="ml-auto text-xs text-white/20 group-hover:text-white/80 tracking-wider font-medium">LAUNCH</span>
                         </a>
-                        <!-- 链接 2: Pixiv -->
-                        <a href="https://www.pixiv.net/users/63464171" target="_blank" class="group flex items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
-                            <div class="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-3 md:mr-4">
-                                <!-- Pixiv Icon -->
-                                <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="16" md:font-size="18" font-weight="bold">P</text>
-                                </svg>
+
+                        <a href="https://space.bilibili.com/478859104" target="_blank" class="group flex items-center p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 hover:bg-pink-500/10 hover:border-pink-500/30">
+                            <div class="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all">
+                                <img src="images/4.png" alt="Bilibili" class="w-full h-full object-cover rounded-xl">
                             </div>
-                            <span class="font-semibold text-white text-sm md:text-base">Pixiv</span>
+                            <span class="ml-4 text-lg font-medium text-slate-200 group-hover:text-pink-500 transition-colors">Bilibili</span>
                         </a>
-                        <!-- 链接 3: X -->
-                        <a href="https://x.com/qinglvsuan" target="_blank" class="group flex items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300">
-                            <div class="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mr-3 md:mr-4">
-                                <!-- X Icon -->
-                                <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="16" md:font-size="18" font-weight="bold">X</text>
+
+                        <a href="https://www.pixiv.net/users/63464171" target="_blank" class="group flex items-center p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 hover:bg-[#0096FA]/10 hover:border-[#0096FA]/30">
+                            <div class="w-11 h-11 rounded-xl bg-[#0096FA] flex items-center justify-center text-white shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all"><span class="font-bold text-xl">P</span></div>
+                            <span class="ml-4 text-lg font-medium text-slate-200 group-hover:text-[#0096FA] transition-colors">Pixiv</span>
+                        </a>
+                        
+                        <a href="https://x.com/qinglvsuan" target="_blank" 
+                           class="group flex items-center p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 
+                                  hover:bg-black/20 hover:border-black/40">
+                                <div class="w-11 h-11 rounded-xl bg-black flex items-center justify-center text-slate-300 
+                                            group-hover:text-white shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all 
+                                            border border-white/10 group-hover:border-black/40">
+
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                                 </svg>
-                            </div>
-                            <span class="font-semibold text-white text-sm md:text-base">X (Twitter)</span>
+                                </div>
+
+                                <span class="ml-4 text-lg font-medium text-slate-200 group-hover:text-black transition-colors">
+                                    X
+                                </span>
+
                         </a>
                     </div>
                 </div>
@@ -114,59 +186,152 @@
         </div>
     </main>
 
-    <!-- 背景设置控件 -->
-    <div class="fixed bottom-4 right-4 bg-black/30 backdrop-blur-sm p-3 rounded-lg shadow-lg">
-        <div class="flex items-center space-x-2">
-            <input type="text" id="bg-url-input" placeholder="输入背景图片 URL..." class="bg-white/20 text-white placeholder-white/70 text-sm rounded-md px-3 py-2 w-48 md:w-64 focus:ring-2 focus:ring-blue-400 focus:outline-none transition">
-            <button id="change-bg-btn" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-md transition-colors duration-300">
-                更换
-            </button>
+    <button id="game-center-btn" class="icon-btn fixed bottom-20 right-6 w-12 h-12 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg z-[100] cursor-pointer">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="6" ry="6"></rect>
+            <path d="M6 12h4"></path>
+            <path d="M8 10v4"></path>
+            <circle cx="16.5" cy="9.5" r="1.0" fill="currentColor" stroke="none"></circle>
+            <circle cx="16.5" cy="14.5" r="1.0" fill="currentColor" stroke="none"></circle>
+            <circle cx="14" cy="12" r="1.0" fill="currentColor" stroke="none"></circle>
+            <circle cx="19" cy="12" r="1.0" fill="currentColor" stroke="none"></circle>
+        </svg>
+    </button>
+
+    <button id="settings-btn" class="icon-btn fixed bottom-6 right-6 w-12 h-12 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg z-[100] cursor-pointer">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+    </button>
+
+    <div id="settings-panel" class="settings-panel fixed bg-slate-900/95 backdrop-blur-xl border p-6 rounded-2xl shadow-2xl w-80" style="border-color: rgba(255,255,255,0.1)">
+        <h3 class="text-sm font-bold mb-4 uppercase tracking-wider border-b border-white/10 pb-2" style="color: var(--primary)">设置控制台</h3>
+        
+        <div class="mb-5">
+            <label class="block text-xs text-slate-400 mb-2">主题配色 (Theme)</label>
+            <div class="flex justify-between gap-2">
+                <button class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 cursor-pointer transition-transform hover:scale-110" onclick="setTheme('pink')" title="Neon Pink"></button>
+                <button class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 cursor-pointer transition-transform hover:scale-110" onclick="setTheme('blue')" title="Cyber Blue"></button>
+                <button class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 cursor-pointer transition-transform hover:scale-110" onclick="setTheme('green')" title="Aurora Green"></button>
+                <button class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-600 cursor-pointer transition-transform hover:scale-110" onclick="setTheme('orange')" title="Sunset Orange"></button>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-xs text-slate-400 mb-2">自定义壁纸 URL</label>
+            <div class="flex gap-2 items-center">
+                <input type="text" id="bg-url-input" placeholder="https://..." class="flex-1 bg-black/40 border border-white/10 text-white text-sm rounded-lg px-3 py-1.5 h-9 focus:ring-2 focus:outline-none transition" style="--tw-ring-color: var(--primary)">
+                <button id="change-bg-btn" class="btn-primary text-xs font-bold px-4 h-9 rounded-lg flex items-center justify-center whitespace-nowrap">确定</button>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-sm text-slate-300">背景虚化 (Focus)</span>
+            <div class="relative inline-block w-10 h-5 align-middle select-none">
+                <input type="checkbox" id="blur-toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/>
+                <label for="blur-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-700 cursor-pointer transition-colors duration-300"></label>
+            </div>
+        </div>
+        
+        <button id="reset-btn" class="w-full mt-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs py-2 rounded-lg border border-white/5 border-dashed transition-colors">恢复默认设置</button>
+    </div>
+
+    <div id="game-center-modal" class="fixed inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <button id="close-game-center" class="absolute top-6 right-6 text-white/50 hover:text-white transition-colors z-20">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        
+        <div id="game-list-view" class="w-full max-w-5xl text-center overflow-y-auto max-h-[90vh]">
+            <h2 class="text-3xl md:text-4xl font-bold text-dynamic-gradient mb-8 mt-4 sticky top-0">GAME CENTER</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-8">
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/parkour.html')">
+                    <div class="w-12 h-12 mx-auto bg-orange-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Subway Runner</h3>
+                </div>
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/dino.html')">
+                    <div class="w-12 h-12 mx-auto bg-slate-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-slate-200" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6h-3V4h-2v2h-2v2h-2v2h-2v2H5v6h2v2h2v2h2v-2h2v2h2v-2h2v-2h1v-4h2V6zM8 14H6v-2h2v2zm2-2H8v-2h2v2zm2-2h-2V8h2v2zm2-2h-2V6h2v2z"/></svg></div>
+                    <h3 class="text-sm font-bold text-white">Dino Run</h3>
+                </div>
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/minesweeper.html')">
+                    <div class="w-12 h-12 mx-auto bg-red-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Minesweeper</h3>
+                </div>
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/draw.html')">
+                    <div class="w-12 h-12 mx-auto bg-teal-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Draw Board</h3>
+                </div>
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/snake.html')">
+                    <div class="w-12 h-12 mx-auto bg-green-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Snake</h3>
+                </div>
+                <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/breakout.html')">
+                    <div class="w-12 h-12 mx-auto bg-pink-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM12 12h.01"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Breakout</h3>
+                </div>
+                 <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/cube3d.html')">
+                    <div class="w-12 h-12 mx-auto bg-blue-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">3D Cube</h3>
+                </div>
+                 <div class="game-card-hover bg-slate-800/50 border border-white/10 rounded-2xl p-4 cursor-pointer transition-all group" onclick="loadGame('games/particles.html')">
+                    <div class="w-12 h-12 mx-auto bg-purple-500/20 rounded-xl mb-3 flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform"><svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg></div>
+                    <h3 class="text-sm font-bold text-white">Particles</h3>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-container" class="w-full max-w-4xl h-[80vh] hidden relative bg-slate-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+            <button id="back-to-list" class="absolute top-4 left-4 flex items-center text-white/70 hover:text-white bg-black/50 px-3 py-1 rounded-lg text-sm z-10 transition-colors">← Back</button>
+            <iframe id="game-frame" src="" frameborder="0" class="w-full h-full"></iframe>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const body = document.getElementById('main-body');
+            const bgLayer = document.getElementById('bg-layer');
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsPanel = document.getElementById('settings-panel');
+            const gameCenterBtn = document.getElementById('game-center-btn');
+            const gameCenterModal = document.getElementById('game-center-modal');
+            const closeGameCenterBtn = document.getElementById('close-game-center');
+            const gameListView = document.getElementById('game-list-view');
+            const gameContainer = document.getElementById('game-container');
+            const gameFrame = document.getElementById('game-frame');
+            const backToListBtn = document.getElementById('back-to-list');
+            const blurToggle = document.getElementById('blur-toggle');
             const bgUrlInput = document.getElementById('bg-url-input');
             const changeBgBtn = document.getElementById('change-bg-btn');
-
+            const resetBtn = document.getElementById('reset-btn');
+            
+            const root = document.documentElement;
             const defaultBgUrl = 'images/2.png';
 
-            const setBackground = (url) => {
-                if (url) {
-                    body.style.backgroundImage = `url('${url}')`;
-                    localStorage.setItem('user-background-image', url);
-                }
+            const themes = {
+                pink: { primary: '#ec4899', hover: '#db2777', glass: 'rgba(25, 15, 35, 0.65)', grad: 'linear-gradient(to right, #ec4899, #d946ef, #8b5cf6)', glow: 'rgba(236, 72, 153, 0.5)', cardHoverBg: 'rgba(236, 72, 153, 0.1)', cardHoverBorder: 'rgba(236, 72, 153, 0.3)', textHighlight: '#f9a8d4' },
+                blue: { primary: '#22d3ee', hover: '#0891b2', glass: 'rgba(15, 25, 35, 0.65)', grad: 'linear-gradient(to right, #22d3ee, #3b82f6, #6366f1)', glow: 'rgba(34, 211, 238, 0.5)', cardHoverBg: 'rgba(34, 211, 238, 0.1)', cardHoverBorder: 'rgba(34, 211, 238, 0.3)', textHighlight: '#a5f3fc' },
+                green: { primary: '#34d399', hover: '#059669', glass: 'rgba(15, 30, 20, 0.65)', grad: 'linear-gradient(to right, #34d399, #10b981, #059669)', glow: 'rgba(52, 211, 153, 0.5)', cardHoverBg: 'rgba(52, 211, 153, 0.1)', cardHoverBorder: 'rgba(52, 211, 153, 0.3)', textHighlight: '#6ee7b7' },
+                orange: { primary: '#fb923c', hover: '#ea580c', glass: 'rgba(35, 20, 15, 0.65)', grad: 'linear-gradient(to right, #fb923c, #f97316, #dc2626)', glow: 'rgba(251, 146, 60, 0.5)', cardHoverBg: 'rgba(251, 146, 60, 0.1)', cardHoverBorder: 'rgba(251, 146, 60, 0.3)', textHighlight: '#fdba74' }
             };
 
-            const savedBgUrl = localStorage.getItem('user-background-image');
-            setBackground(savedBgUrl || defaultBgUrl);
+            window.setTheme = (themeName) => {
+                const t = themes[themeName]; if(!t) return;
+                root.style.setProperty('--primary', t.primary); root.style.setProperty('--primary-hover', t.hover); root.style.setProperty('--glass-bg', t.glass); root.style.setProperty('--text-grad', t.grad); root.style.setProperty('--glow-color', t.glow); root.style.setProperty('--card-hover-bg', t.cardHoverBg); root.style.setProperty('--card-hover-border', t.cardHoverBorder); root.style.setProperty('--text-highlight', t.textHighlight);
+                localStorage.setItem('user-theme', themeName);
+            };
 
-            changeBgBtn.addEventListener('click', () => {
-                const newUrl = bgUrlInput.value.trim();
-                if (newUrl) {
-                    const img = new Image();
-                    img.src = newUrl;
-                    img.onload = () => setBackground(newUrl);
-                    img.onerror = () => {
-                        const existingAlert = document.getElementById('custom-alert');
-                        if(existingAlert) existingAlert.remove();
+            const setBackground = (url) => { if (!url) return; const img = new Image(); img.src = url; img.onload = () => { bgLayer.style.backgroundImage = `url('${url}')`; localStorage.setItem('user-background-image', url); }; };
+            const toggleBlur = (isBlurred) => { isBlurred ? bgLayer.classList.add('is-blurred') : bgLayer.classList.remove('is-blurred'); localStorage.setItem('user-bg-blur', isBlurred); };
 
-                        const alertBox = document.createElement('div');
-                        alertBox.id = 'custom-alert';
-                        alertBox.className = 'fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg';
-                        alertBox.innerText = '无法加载图片，请检查 URL。';
-                        document.body.appendChild(alertBox);
-                        setTimeout(() => alertBox.remove(), 3000);
-                    };
-                }
-            });
-            
-            bgUrlInput.addEventListener('keyup', (event) => {
-                if (event.key === 'Enter') {
-                    changeBgBtn.click();
-                }
-            });
+            setBackground(localStorage.getItem('user-background-image') || defaultBgUrl);
+            const savedBlur = localStorage.getItem('user-bg-blur') === 'true'; if(blurToggle) blurToggle.checked = savedBlur; toggleBlur(savedBlur);
+            window.setTheme(localStorage.getItem('user-theme') || 'pink');
+
+            settingsBtn.addEventListener('click', (e) => { e.stopPropagation(); settingsPanel.classList.toggle('active'); settingsBtn.classList.toggle('rotate-90'); });
+            changeBgBtn.addEventListener('click', () => { const val = bgUrlInput.value.trim(); if(val) { setBackground(val); bgUrlInput.value=''; } });
+            blurToggle.addEventListener('change', (e) => toggleBlur(e.target.checked));
+            resetBtn.addEventListener('click', () => { if(confirm('恢复默认?')) { localStorage.clear(); setBackground(defaultBgUrl); toggleBlur(false); window.setTheme('pink'); location.reload(); } });
+            document.addEventListener('click', (e) => { if(settingsPanel.classList.contains('active') && !settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) { settingsPanel.classList.remove('active'); settingsBtn.classList.remove('rotate-90'); } });
+            gameCenterBtn.addEventListener('click', () => { gameCenterModal.classList.add('open'); gameListView.classList.remove('hidden'); gameContainer.classList.add('hidden'); settingsPanel.classList.remove('active'); settingsBtn.classList.remove('rotate-90'); });
+            closeGameCenterBtn.addEventListener('click', () => { gameCenterModal.classList.remove('open'); setTimeout(() => { gameFrame.src = ''; }, 300); });
+            backToListBtn.addEventListener('click', () => { gameContainer.classList.add('hidden'); gameListView.classList.remove('hidden'); gameFrame.src = ''; });
+            window.loadGame = (gameUrl) => { gameListView.classList.add('hidden'); gameContainer.classList.remove('hidden'); gameFrame.src = gameUrl; }
         });
     </script>
 </body>
