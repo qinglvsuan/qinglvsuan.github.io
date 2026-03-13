@@ -68,16 +68,6 @@
         @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-        /* --- 鼠标光晕跟随 --- */
-        #cursor-glow {
-            position: fixed; top: 0; left: 0; width: 400px; height: 400px;
-            background: radial-gradient(circle closest-side, var(--glow-color), transparent);
-            transform: translate(-50%, -50%); border-radius: 50%;
-            pointer-events: none; z-index: -1; mix-blend-mode: screen; opacity: 0.6;
-            transition: width 0.3s, height 0.3s, opacity 0.3s;
-        }
-        #cursor-glow.active { width: 500px; height: 500px; opacity: 0.9; }
-
         .animate-fade-up { opacity: 0; transform: translateY(30px); animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 
@@ -126,7 +116,6 @@
 
     <div id="bg-layer"></div>
     <div id="overlay-layer"></div>
-    <div id="cursor-glow"></div>
     <canvas id="mouse-particles" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
 
     <main class="w-full flex items-center justify-center p-4 md:p-8 z-10">
@@ -314,16 +303,9 @@
             const bgUrlInput = document.getElementById('bg-url-input');
             const changeBgBtn = document.getElementById('change-bg-btn');
             const resetBtn = document.getElementById('reset-btn');
-            const cursorGlow = document.getElementById('cursor-glow');
             
             const root = document.documentElement;
             const defaultBgUrl = 'images/2.png';
-
-            // --- 鼠标跟随效果 ---
-            document.addEventListener('mousemove', (e) => {
-                cursorGlow.style.left = e.clientX + 'px';
-                cursorGlow.style.top = e.clientY + 'px';
-            });
 
             // --- 鼠标粒子特效 ---
             const partCanvas = document.getElementById('mouse-particles');
@@ -341,10 +323,10 @@
             document.addEventListener('mousemove', (e) => {
                 mouse.x = e.clientX;
                 mouse.y = e.clientY;
-                // 每次移动生成 2 个粒子
-                for (let i = 0; i < 2; i++) {
-                    particlesArray.push(new Particle());
-                }
+            });
+            document.addEventListener('mouseleave', () => {
+                mouse.x = null;
+                mouse.y = null;
             });
 
             class Particle {
@@ -379,6 +361,12 @@
 
             function animateParticles() {
                 partCtx.clearRect(0, 0, partCanvas.width, partCanvas.height);
+                
+                // 每帧都在鼠标位置生成粒子，即是不动
+                if (mouse.x !== null && mouse.y !== null) {
+                    particlesArray.push(new Particle());
+                }
+
                 for (let i = 0; i < particlesArray.length; i++) {
                     particlesArray[i].update();
                     particlesArray[i].draw();
@@ -390,12 +378,6 @@
                 requestAnimationFrame(animateParticles);
             }
             animateParticles();
-            
-            const interactiveElements = document.querySelectorAll('a, button, .game-card-hover');
-            interactiveElements.forEach(el => {
-                el.addEventListener('mouseenter', () => cursorGlow.classList.add('active'));
-                el.addEventListener('mouseleave', () => cursorGlow.classList.remove('active'));
-            });
 
             const themes = {
                 pink: { primary: '#ec4899', hover: '#db2777', glass: 'rgba(25, 15, 35, 0.65)', grad: 'linear-gradient(to right, #ec4899, #d946ef, #8b5cf6)', glow: 'rgba(236, 72, 153, 0.5)', cardHoverBg: 'rgba(236, 72, 153, 0.1)', cardHoverBorder: 'rgba(236, 72, 153, 0.3)', textHighlight: '#f9a8d4' },
