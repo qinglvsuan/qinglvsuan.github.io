@@ -15,29 +15,47 @@
 </head>
 <body class="flex flex-col">
     <h2 class="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500">MINESWEEPER</h2>
-    <div class="mb-4 text-slate-400 text-sm">Left Click: Reveal | Right Click: Flag</div>
-    <div id="grid" class="grid grid-cols-10 gap-1 bg-slate-800 p-2 rounded-lg shadow-2xl"></div>
-    <button onclick="init()" class="mt-6 px-6 py-2 bg-pink-600 hover:bg-pink-500 rounded-full text-white transition">Reset</button>
+    <div class="mb-4 flex gap-6 text-slate-400 text-sm font-mono">
+        <div>💣 <span id="bomb-counter">00</span></div>
+        <div>⏱️ <span id="timer">000</span></div>
+    </div>
+    <div id="grid" class="grid grid-cols-10 gap-1 bg-slate-800 p-2 rounded-xl shadow-2xl border border-white/5"></div>
+    <div class="flex gap-4">
+        <button onclick="init()" class="mt-6 px-6 py-2 bg-pink-600 hover:bg-pink-500 rounded-full text-white transition font-bold shadow-lg shadow-pink-900/20">Reset</button>
+    </div>
 
     <script>
         const gridEl = document.getElementById('grid');
+        const bombCounterEl = document.getElementById('bomb-counter');
+        const timerEl = document.getElementById('timer');
+        
         const size = 10;
-        const bombCount = 15;
+        const bombCount = 12;
         let cells = [];
         let gameOver = false;
+        let timer = 0;
+        let timerInterval = null;
+        let flagsPlaced = 0;
+        let revealedCount = 0;
 
         function init() {
             gridEl.innerHTML = '';
             cells = [];
             gameOver = false;
+            timer = 0;
+            revealedCount = 0;
+            flagsPlaced = 0;
+            if(timerInterval) clearInterval(timerInterval);
+            timerEl.innerText = '000';
+            bombCounterEl.innerText = bombCount.toString().padStart(2, '0');
             
             // 生成格子
             for(let i=0; i<size*size; i++) {
                 const cell = document.createElement('div');
-                cell.classList.add('cell');
+                cell.classList.add('cell', 'rounded-sm', 'transition-all', 'duration-200');
                 cell.dataset.id = i;
-                cell.addEventListener('click', () => handleClick(cell));
-                cell.addEventListener('contextmenu', (e) => { e.preventDefault(); handleRightClick(cell); });
+                cell.addEventListener('click', () => handleClick(i));
+                cell.addEventListener('contextmenu', (e) => { e.preventDefault(); handleRightClick(i); });
                 gridEl.appendChild(cell);
                 cells.push({ element: cell, isBomb: false, revealed: false, flagged: false, neighborBombs: 0 });
             }
@@ -62,6 +80,15 @@
             }
         }
 
+        function startTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                timer++;
+                timerEl.innerText = timer.toString().padStart(3, '0');
+                if (timer >= 999) clearInterval(timerInterval);
+            }, 1000);
+        }
+
         function getNeighbors(idx) {
             const neighbors = [];
             const r = Math.floor(idx/size);
@@ -76,57 +103,85 @@
             return neighbors;
         }
 
-        function handleClick(el) {
+        function handleClick(idx) {
             if(gameOver) return;
-            const id = parseInt(el.dataset.id);
-            const cell = cells[id];
+            startTimer();
+            const cell = cells[idx];
             if(cell.flagged || cell.revealed) return;
 
             if(cell.isBomb) {
-                el.classList.add('bomb');
-                el.innerHTML = '💣';
-                gameOver = true;
-                alert('BOOM! Game Over.');
-                revealAll();
+                cell.element.classList.add('bomb', 'scale-110', 'z-10');
+                cell.element.innerHTML = '💥';
+                endGame(false);
             } else {
-                reveal(id);
+                reveal(idx);
+                checkWin();
             }
         }
 
-        function handleRightClick(el) {
+        function handleRightClick(idx) {
             if(gameOver) return;
-            const id = parseInt(el.dataset.id);
-            const cell = cells[id];
+            startTimer();
+            const cell = cells[idx];
             if(cell.revealed) return;
+            
             cell.flagged = !cell.flagged;
-            el.classList.toggle('flagged');
-            el.innerHTML = cell.flagged ? '🚩' : '';
+            flagsPlaced += cell.flagged ? 1 : -1;
+            bombCounterEl.innerText = Math.max(0, bombCount - flagsPlaced).toString().padStart(2, '0');
+            
+            cell.element.classList.toggle('flagged');
+            cell.element.innerHTML = cell.flagged ? '🚩' : '';
+            cell.element.style.color = cell.flagged ? '#fbbf24' : '';
         }
 
         function reveal(id) {
             const cell = cells[id];
             if(cell.revealed || cell.flagged) return;
+            
             cell.revealed = true;
+            revealedCount++;
             cell.element.classList.add('revealed');
             
             if(cell.neighborBombs > 0) {
                 cell.element.innerHTML = cell.neighborBombs;
-                // 颜色代码
-                const colors = ['#22d3ee', '#a3e635', '#fbbf24', '#f87171'];
-                cell.element.style.color = colors[Math.min(cell.neighborBombs-1, 3)];
+                // 霓虹配色
+                const colors = ['#22d3ee', '#4ade80', '#fbbf24', '#f87171', '#a855f7', '#ec4899', '#ffffff', '#94a3b8'];
+                cell.element.style.color = colors[cell.neighborBombs-1];
+                cell.element.style.textShadow = `0 0 8px ${colors[cell.neighborBombs-1]}44`;
             } else {
                 // 递归打开空白区域
                 getNeighbors(id).forEach(n => reveal(n));
             }
         }
 
-        function revealAll() {
+        function checkWin() {
+            if (revealedCount === size * size - bombCount) {
+                endGame(true);
+            }
+        }
+
+        function endGame(isWin) {
+            gameOver = true;
+            clearInterval(timerInterval);
+            timerInterval = null;
+            
             cells.forEach(c => {
                 if(c.isBomb) {
-                    c.element.classList.add('bomb');
-                    c.element.innerHTML = '💣';
+                    if (!isWin && !c.flagged) {
+                        c.element.classList.add('revealed');
+                        c.element.innerHTML = '💣';
+                    } else if (isWin) {
+                        c.element.innerHTML = '🚩';
+                        c.element.classList.add('flagged');
+                    }
+                } else if (c.flagged && !c.isBomb) {
+                    c.element.innerHTML = '❌';
                 }
             });
+
+            setTimeout(() => {
+                alert(isWin ? `CONGRATULATIONS! Time: ${timer}s` : 'GAME OVER! You hit a mine.');
+            }, 100);
         }
 
         init();
