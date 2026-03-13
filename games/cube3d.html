@@ -2,54 +2,251 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>3D Interactive Cube</title>
+    <title>3D Cyber Cube</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #0f172a; }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap');
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); 
+            font-family: 'Space Grotesk', sans-serif;
+            user-select: none;
+        }
         canvas { display: block; }
-        #info { position: absolute; top: 10px; width: 100%; text-align: center; color: #a855f7; font-family: sans-serif; pointer-events: none; }
+        
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+        }
+        
+        .title {
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            background-image: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 10px rgba(129, 140, 248, 0.5));
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: rgba(129, 140, 248, 0.2);
+            border-color: #818cf8;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(129, 140, 248, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .footer-text {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px; height: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px; height: 4px;
+            background: rgba(56, 189, 248, 0.5);
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
-    <div id="info">Drag to spin the cube!</div>
+    <div id="ui-layer">
+        <div class="header">
+            <h1 class="title">Cyber Core</h1>
+            <div class="subtitle">DRAG TO ROTATE · SCROLL TO ZOOM</div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" id="btn-wireframe">Toggle Grid</button>
+            <button class="btn" id="btn-auto">Auto Spin: ON</button>
+        </div>
+        
+        <div class="footer-text">v2.0 // NEON ENGINE</div>
+    </div>
+    
+    <div id="crosshair"></div>
+
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
         import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
 
         // 1. 场景与相机
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a); // 深蓝背景
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 5;
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.04);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(4, 3, 6);
 
         // 2. 渲染器
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // 3. 控制器 (允许鼠标拖动)
+        // 3. 控制器
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 15;
 
-        // 4. 创建一个立方体
-        const geometry = new THREE.BoxGeometry(2, 2, 2);
-        // 使用法线材质，让颜色随角度变化，很有科技感
-        const material = new THREE.MeshNormalMaterial(); 
-        const cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
+        // 4. 创建复杂的复合网格体
+        const coreGroup = new THREE.Group();
+        scene.add(coreGroup);
 
-        // 添加一些霓虹线框
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 }); // 粉色线框
-        const wireframe = new THREE.LineSegments(edges, lineMaterial);
-        cube.add(wireframe);
+        // 中心核心
+        const geoCore = new THREE.IcosahedronGeometry(1.5, 1);
+        const matCore = new THREE.MeshPhongMaterial({ 
+            color: 0x38bdf8, 
+            emissive: 0x0ea5e9,
+            emissiveIntensity: 0.2,
+            wireframe: false,
+            flatShading: true
+        });
+        const coreMesh = new THREE.Mesh(geoCore, matCore);
+        coreGroup.add(coreMesh);
 
-        // 5. 动画循环
+        // 外部框架
+        const geoOuter = new THREE.IcosahedronGeometry(2.2, 1);
+        const edges = new THREE.EdgesGeometry(geoOuter);
+        const matOuter = new THREE.LineBasicMaterial({ 
+            color: 0xc084fc, 
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.6
+        });
+        const outerWireframe = new THREE.LineSegments(edges, matOuter);
+        coreGroup.add(outerWireframe);
+
+        // 粒子环绕
+        const particlesGeo = new THREE.BufferGeometry();
+        const particlesCount = 500;
+        const posArray = new Float32Array(particlesCount * 3);
+        for(let i=0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 12;
+        }
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.05,
+            color: 0x818cf8,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        const particles = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particles);
+
+        // 5. 灯光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        scene.add(ambientLight);
+
+        const pointLight1 = new THREE.PointLight(0xc084fc, 2, 20);
+        pointLight1.position.set(5, 5, 5);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x38bdf8, 2, 20);
+        pointLight2.position.set(-5, -5, -5);
+        scene.add(pointLight2);
+
+        // 6. UI 交互逻辑
+        let isAutoSpin = true;
+        let isWireframe = false;
+
+        document.getElementById('btn-auto').addEventListener('click', (e) => {
+            isAutoSpin = !isAutoSpin;
+            e.target.innerText = `Auto Spin: ${isAutoSpin ? 'ON' : 'OFF'}`;
+            e.target.style.borderColor = isAutoSpin ? '#818cf8' : 'rgba(255,255,255,0.1)';
+        });
+
+        document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+            isWireframe = !isWireframe;
+            matCore.wireframe = isWireframe;
+            e.target.style.background = isWireframe ? 'rgba(129, 140, 248, 0.2)' : 'rgba(255,255,255,0.05)';
+        });
+
+        // 7. 动画循环
+        const clock = new THREE.Clock();
+
         function animate() {
             requestAnimationFrame(animate);
-            // 自动缓慢旋转
-            cube.rotation.x += 0.002;
-            cube.rotation.y += 0.005;
-            controls.update(); // 更新控制器
+            const elapsedTime = clock.getElapsedTime();
+
+            if(isAutoSpin) {
+                coreGroup.rotation.y += 0.005;
+                coreGroup.rotation.z += 0.002;
+            }
+
+            // 核心呼吸效果
+            const scale = 1 + Math.sin(elapsedTime * 2) * 0.05;
+            coreMesh.scale.set(scale, scale, scale);
+
+            // 外部线框反向旋转
+            outerWireframe.rotation.x -= 0.001;
+            outerWireframe.rotation.y -= 0.003;
+
+            // 粒子缓慢旋转
+            particles.rotation.y = elapsedTime * 0.05;
+
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
