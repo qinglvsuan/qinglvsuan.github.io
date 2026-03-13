@@ -70,23 +70,23 @@
 
         // --- 核心参数 ---
         const CONFIG = {
-            initSpeed: 0.12,     
-            maxSpeed: 0.7,
-            speedInc: 0.00001,
+            initSpeed: 0.15,     
+            maxSpeed: 0.8,
+            speedInc: 0.0001,
             laneWidth: 2.2,
             // 滞空物理
-            jumpForce: 0.15,     
-            gravity: 0.006,      
-            slideTime: 1000      
+            jumpForce: 0.18,     
+            gravity: 0.008,      
+            slideTime: 800      
         };
 
         // --- 1. 场景 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a);
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.025);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 3.5, 7);
+        camera.position.set(0, 4, 8);
         camera.lookAt(0, 0.5, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -95,19 +95,31 @@
         document.body.appendChild(renderer.domElement);
 
         // 灯光
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7)); 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5)); 
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(10, 20, 10);
         dirLight.castShadow = true;
         scene.add(dirLight);
+
+        // 点光源增加氛围
+        const pointLight = new THREE.PointLight(0xec4899, 2, 20);
+        pointLight.position.set(0, 2, 0);
+        scene.add(pointLight);
 
         // --- 2. 材质 ---
         function createGridTexture() {
             const c = document.createElement('canvas'); c.width=512; c.height=512;
             const ctx = c.getContext('2d');
             ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,512,512);
-            ctx.strokeStyle='#ec4899'; ctx.lineWidth=4; ctx.strokeRect(0,0,512,512);
-            ctx.strokeStyle='rgba(34,211,238,0.3)'; ctx.lineWidth=2;
+            
+            // 绘制发光线条
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ec4899';
+            ctx.strokeStyle='#ec4899'; ctx.lineWidth=6; ctx.strokeRect(0,0,512,512);
+            
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#22d3ee';
+            ctx.strokeStyle='#22d3ee'; ctx.lineWidth=2;
             for(let i=64; i<512; i+=64){ctx.moveTo(i,0);ctx.lineTo(i,512);ctx.moveTo(0,i);ctx.lineTo(512,i);}
             ctx.stroke();
             const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping;
@@ -115,29 +127,41 @@
         }
         
         function createHazardTexture() {
-            const c=document.createElement('canvas'); c.width=64; c.height=64;
+            const c=document.createElement('canvas'); c.width=128; c.height=128;
             const ctx=c.getContext('2d');
-            ctx.fillStyle='#fbbf24'; ctx.fillRect(0,0,64,64);
-            ctx.fillStyle='#000'; 
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(32,0); ctx.lineTo(0,32); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(32,64); ctx.lineTo(64,64); ctx.lineTo(64,32); ctx.fill();
+            ctx.fillStyle='#1e293b'; ctx.fillRect(0,0,128,128);
+            
+            ctx.strokeStyle='#f43f5e'; ctx.lineWidth=8;
+            ctx.strokeRect(4,4,120,120);
+            
+            ctx.fillStyle='#f43f5e';
+            ctx.font = "bold 40px Arial";
+            ctx.fillText("DANGER", 10, 75);
+            
             return new THREE.CanvasTexture(c);
         }
 
         // --- 3. 对象 ---
         const floorTex = createGridTexture(); 
         floorTex.repeat.set(10, 40); 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 400), new THREE.MeshPhongMaterial({ map: floorTex }));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 800), new THREE.MeshPhongMaterial({ map: floorTex }));
         ground.rotation.x = -Math.PI/2; 
-        ground.position.z = -150; 
+        ground.position.z = -350; 
         ground.receiveShadow = true;
         scene.add(ground);
 
-        const playerGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-        const playerMat = new THREE.MeshPhongMaterial({ color: 0x22d3ee });
-        const player = new THREE.Mesh(playerGeo, playerMat);
-        player.position.y = 0.4; player.castShadow = true;
-        scene.add(player);
+        // 玩家模型优化
+        const playerGroup = new THREE.Group();
+        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshPhongMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 0.5 }));
+        bodyMesh.castShadow = true;
+        playerGroup.add(bodyMesh);
+        
+        const eyeMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+        const eye1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.1), eyeMat); eye1.position.set(-0.2, 0.2, -0.4); playerGroup.add(eye1);
+        const eye2 = eye1.clone(); eye2.position.set(0.2, 0.2, -0.4); playerGroup.add(eye2);
+        
+        playerGroup.position.y = 0.4;
+        scene.add(playerGroup);
 
         // 变量
         let lanes = [-CONFIG.laneWidth, 0, CONFIG.laneWidth];
@@ -154,13 +178,13 @@
         let verticalVelocity = 0;
         
         // 障碍物
-        const obstacleMat = new THREE.MeshPhongMaterial({ map: createHazardTexture() });
+        const obstacleMat = new THREE.MeshPhongMaterial({ map: createHazardTexture(), emissive: 0xf43f5e, emissiveIntensity: 0.2 });
         let obstacles = [];
 
         function spawnObstacle() {
             if (!isRunning || isGameOver) return;
 
-            let spawnChance = 0.5 + (playerSpeedZ * 0.3); 
+            let spawnChance = 0.4 + (playerSpeedZ * 0.5); 
             const count = Math.random() > spawnChance ? 1 : 2;
             let availableLanes = [0, 1, 2].sort(() => Math.random() - 0.5);
             let spawnLanes = availableLanes.slice(0, count);
@@ -173,33 +197,29 @@
 
                 if (typeRnd < 0.4) {
                     // [矮墙 Low]
-                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 0.5), obstacleMat);
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 0.8), obstacleMat);
                     mesh.position.y = 0.4; mesh.castShadow = true;
                     obsGroup.add(mesh);
                     hitBoxY = 0.4;
-                } else if (typeRnd < 0.75) {
-                    // [高墙 Tall]
-                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4, 0.5), obstacleMat);
-                    mesh.position.y = 2.0; mesh.castShadow = true;
+                    hitBoxSize.set(1.8, 0.8, 0.8);
+                } else if (typeRnd < 0.7) {
+                    // [高墙 Tall] - 需要跳跃
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.5, 0.8), obstacleMat);
+                    mesh.position.y = 1.25; mesh.castShadow = true;
                     obsGroup.add(mesh);
-                    hitBoxSize.y = 4; hitBoxY = 2.0;
+                    hitBoxSize.set(1.8, 2.5, 0.8); hitBoxY = 1.25;
                 } else {
-                    // [悬浮板 Flying] - 巨型悬浮石
-                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.5, 0.5), obstacleMat);
-                    mesh.position.y = 2.85; // 底部离地1.1
+                    // [悬浮障碍 Flying] - 需要下滑
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.0, 0.8), obstacleMat);
+                    mesh.position.y = 3.0; // 底部离地 1.5
                     mesh.castShadow = true;
                     obsGroup.add(mesh);
                     
-                    // 支柱
-                    const pMat = new THREE.MeshBasicMaterial({color:0x555555});
-                    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.1), pMat); p1.position.set(-0.7, 0.55, 0); obsGroup.add(p1);
-                    const p2 = p1.clone(); p2.position.set(0.7, 0.55, 0); obsGroup.add(p2);
-
-                    hitBoxSize = new THREE.Vector3(1.6, 3.5, 0.5);
-                    hitBoxY = 2.85;
+                    hitBoxSize.set(2.0, 3.0, 0.8);
+                    hitBoxY = 3.0;
                 }
 
-                obsGroup.position.set(lanes[laneIdx], 0, player.position.z - 100 - Math.random()*20);
+                obsGroup.position.set(lanes[laneIdx], 0, playerGroup.position.z - 120 - Math.random()*30);
                 obsGroup.userData = { 
                     box: new THREE.Box3(), 
                     size: hitBoxSize, 
@@ -209,7 +229,7 @@
                 obstacles.push(obsGroup);
             });
 
-            const nextSpawn = Math.max(700, 2500 / (playerSpeedZ * 10));
+            const nextSpawn = Math.max(500, 2000 / (playerSpeedZ * 15));
             setTimeout(spawnObstacle, nextSpawn);
         }
 
@@ -229,11 +249,11 @@
         function slide() {
             if (!isSliding && !isJumping) {
                 isSliding = true;
-                player.material.color.setHex(0xffff00);
+                bodyMesh.material.color.setHex(0xfacc15);
                 if(slideTimer) clearTimeout(slideTimer);
                 slideTimer = setTimeout(() => {
                     isSliding = false;
-                    player.material.color.setHex(0x22d3ee);
+                    bodyMesh.material.color.setHex(0x22d3ee);
                 }, CONFIG.slideTime);
             } else if (isJumping) {
                 verticalVelocity = -CONFIG.jumpForce * 1.5; 
@@ -241,7 +261,10 @@
         }
 
         document.addEventListener('keydown', (e) => {
-            if (isGameOver && e.code === 'Space') location.reload();
+            if (isGameOver && e.code === 'Space') {
+                startGame();
+                return;
+            }
             if (!isRunning) return;
             switch(e.key) {
                 case 'a': case 'ArrowLeft': switchLane('left'); break;
@@ -251,15 +274,39 @@
             }
         });
 
+        // 简单的触摸支持
+        let touchStartX = 0;
+        let touchStartY = 0;
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        document.addEventListener('touchend', e => {
+            if (!isRunning) return;
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 30) switchLane('right');
+                else if (dx < -30) switchLane('left');
+            } else {
+                if (dy < -30) jump();
+                else if (dy > 30) slide();
+            }
+        });
+
         // --- 5. 循环 ---
         const playerBox = new THREE.Box3();
         
-        for(let i=0; i<20; i++) {
+        // 速度线动画
+        const speedLines = [];
+        for(let i=0; i<30; i++) {
             const d = document.createElement('div');
             d.className = 'speed-line';
             d.style.left = Math.random()*100+'%';
-            d.style.animationDuration = (Math.random()*0.5+0.3)+'s';
+            d.style.animationDuration = (Math.random()*0.4+0.2)+'s';
+            d.style.opacity = Math.random() * 0.3;
             document.body.appendChild(d);
+            speedLines.push(d);
         }
 
         function update() {
@@ -267,50 +314,53 @@
             if (!isRunning || isGameOver) return;
 
             if(playerSpeedZ < CONFIG.maxSpeed) playerSpeedZ += CONFIG.speedInc;
-            player.position.z -= playerSpeedZ;
+            playerGroup.position.z -= playerSpeedZ;
             
-            camera.position.z = player.position.z + 7;
-            camera.position.x += (player.position.x - camera.position.x) * 0.1; 
-            ground.position.z = player.position.z - 150;
+            // 相机平滑跟随
+            camera.position.z = playerGroup.position.z + 8;
+            camera.position.x += (playerGroup.position.x - camera.position.x) * 0.05; 
+            ground.position.z = playerGroup.position.z - 350;
             
-            // 修复：反转纹理滚动方向 (+=)
-            floorTex.offset.y += playerSpeedZ * 0.1;
+            // 纹理滚动
+            floorTex.offset.y += playerSpeedZ * 0.05;
+            pointLight.position.z = playerGroup.position.z;
 
             const targetX = lanes[currentLane];
-            player.position.x += (targetX - player.position.x) * 0.15;
-            player.rotation.z = (player.position.x - targetX) * -0.3;
+            playerGroup.position.x += (targetX - playerGroup.position.x) * 0.2;
+            playerGroup.rotation.z = (playerGroup.position.x - targetX) * -0.2;
 
             // 跳跃
             if (isJumping) {
-                player.position.y += verticalVelocity;
+                playerGroup.position.y += verticalVelocity;
                 verticalVelocity -= CONFIG.gravity;
-                if (player.position.y <= 0.4) {
-                    player.position.y = 0.4;
+                if (playerGroup.position.y <= 0.4) {
+                    playerGroup.position.y = 0.4;
                     isJumping = false;
                     verticalVelocity = 0;
-                    player.rotation.x = 0;
+                    playerGroup.rotation.x = 0;
                 } else {
-                    player.rotation.x -= 0.1;
+                    playerGroup.rotation.x -= 0.15; // 空中翻滚
                 }
             } else {
-                player.position.y = 0.4;
-                player.rotation.x -= playerSpeedZ;
+                playerGroup.position.y = 0.4;
+                playerGroup.rotation.x = 0;
             }
 
             // 下滑
             if (isSliding) {
-                player.scale.set(1.2, 0.5, 1.2); 
-                if(!isJumping) player.position.y = 0.2; 
+                playerGroup.scale.set(1.3, 0.4, 1.3); 
+                if(!isJumping) playerGroup.position.y = 0.2; 
             } else {
-                player.scale.set(1, 1, 1);
+                playerGroup.scale.set(1, 1, 1);
             }
 
-            playerBox.setFromObject(player);
-            playerBox.expandByScalar(-0.15);
+            playerBox.setFromObject(playerGroup);
+            playerBox.expandByScalar(-0.2); // 缩小碰撞体积，提高容错
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let grp = obstacles[i];
-                if (grp.position.z > player.position.z + 5) {
+                // 移除过后的障碍物
+                if (grp.position.z > playerGroup.position.z + 10) {
                     scene.remove(grp);
                     obstacles.splice(i, 1);
                     score += 10;
@@ -318,9 +368,9 @@
                     continue;
                 }
 
+                // 动态更新碰撞盒
                 const center = new THREE.Vector3(grp.position.x, grp.userData.yOffset, grp.position.z);
                 grp.userData.box.setFromCenterAndSize(center, grp.userData.size);
-                grp.userData.box.expandByScalar(-0.05); 
 
                 if (playerBox.intersectsBox(grp.userData.box)) {
                     gameOver();
@@ -337,7 +387,10 @@
             score = 0;
             playerSpeedZ = CONFIG.initSpeed;
             currentLane = 1;
-            player.position.set(0, 0.4, 0);
+            playerGroup.position.set(0, 0.4, 0);
+            playerGroup.rotation.set(0, 0, 0);
+            playerGroup.scale.set(1, 1, 1);
+            bodyMesh.material.color.setHex(0x22d3ee);
             document.getElementById('score-board').innerText = 0;
             
             isRunning = true;
@@ -354,7 +407,7 @@
             isGameOver = true;
             isRunning = false;
             document.getElementById('title-text').innerText = "CRASHED!";
-            document.getElementById('status-text').innerText = "Score: " + score;
+            document.getElementById('status-text').innerText = "Final Score: " + score;
             document.getElementById('action-btn').innerText = "TRY AGAIN";
             document.getElementById('game-overlay').style.display = 'flex';
             setTimeout(() => document.getElementById('game-overlay').style.opacity = 1, 50);
