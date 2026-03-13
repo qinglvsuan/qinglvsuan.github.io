@@ -1,75 +1,233 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Drawing Board</title>
+    <title>Neon Draw Board</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0f172a; color: white; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        canvas { background: white; cursor: crosshair; border-radius: 8px; touch-action: none; }
-        .tool-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
-        .tool-btn.active { transform: scale(1.2); border-color: white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        body { 
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); 
+            color: white; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .canvas-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), 0 0 20px var(--current-glow, rgba(255,255,255,0.1));
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+            position: relative;
+        }
+        canvas { 
+            display: block;
+            cursor: crosshair; 
+            touch-action: none; 
+        }
+        /* 工具栏美化 */
+        .toolbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .tool-btn { 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            border: 2px solid transparent; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            cursor: pointer; 
+            position: relative;
+        }
+        .tool-btn.active { 
+            transform: scale(1.15); 
+            border-color: white; 
+            box-shadow: 0 0 15px var(--btn-color, rgba(255,255,255,0.5)); 
+        }
+        /* 拟物化滑块 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100px;
+            background: rgba(255,255,255,0.1);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .btn-action {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-action:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+        .btn-save {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            border: none;
+            color: white;
+        }
+        .btn-save:hover {
+            background: linear-gradient(135deg, #4f46e5, #9333ea);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+        }
+        
+        #colorPicker {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            padding: 0;
+        }
+        #colorPicker::-webkit-color-swatch-wrapper { padding: 0; }
+        #colorPicker::-webkit-color-swatch { border: none; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <div class="w-full max-w-3xl p-4 flex flex-col items-center h-full">
-        <div class="flex justify-between w-full items-center mb-4 bg-slate-800 p-3 rounded-xl shadow-lg">
-            <div class="flex gap-2 items-center">
-                <div class="tool-btn bg-black active" onclick="setColor('black', this)"></div>
-                <div class="tool-btn bg-red-500" onclick="setColor('#ef4444', this)"></div>
-                <div class="tool-btn bg-blue-500" onclick="setColor('#3b82f6', this)"></div>
-                <div class="tool-btn bg-green-500" onclick="setColor('#22c55e', this)"></div>
-                <div class="tool-btn bg-yellow-400" onclick="setColor('#facc15', this)"></div>
+    <div class="w-full max-w-4xl p-4 flex flex-col items-center h-full">
+        <!-- 顶部工具栏 -->
+        <div class="toolbar w-full flex justify-between items-center mb-6 p-4 rounded-2xl z-10">
+            <div class="flex gap-3 items-center">
+                <div class="tool-btn active bg-black" style="--btn-color: #000" onclick="setColor('black', this)"></div>
+                <div class="tool-btn bg-rose-500" style="--btn-color: #f43f5e" onclick="setColor('#f43f5e', this)"></div>
+                <div class="tool-btn bg-blue-500" style="--btn-color: #3b82f6" onclick="setColor('#3b82f6', this)"></div>
+                <div class="tool-btn bg-emerald-400" style="--btn-color: #34d399" onclick="setColor('#34d399', this)"></div>
+                <div class="tool-btn bg-amber-400" style="--btn-color: #fbbf24" onclick="setColor('#fbbf24', this)"></div>
+                <div class="tool-btn bg-fuchsia-500" style="--btn-color: #d946ef" onclick="setColor('#d946ef', this)"></div>
+                
                 <div class="h-6 w-px bg-slate-600 mx-2"></div>
-                <input type="color" id="colorPicker" class="w-8 h-8 rounded cursor-pointer" onchange="setColor(this.value, null)">
+                
+                <input type="color" id="colorPicker" value="#000000" onchange="setCustomColor(this.value)" title="自定义颜色">
             </div>
             
             <div class="flex gap-4 items-center">
-                <input type="range" min="1" max="20" value="5" class="w-24" id="lineWidth" onchange="lineWidth=this.value">
-                <button onclick="setColor('white', null)" class="text-slate-300 hover:text-white text-sm font-bold">Eraser</button>
-                <button onclick="clearCanvas()" class="text-red-400 hover:text-red-300 text-sm font-bold">Clear</button>
-                <button onclick="download()" class="bg-violet-600 hover:bg-violet-500 px-3 py-1 rounded text-xs font-bold">Save</button>
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    <input type="range" min="1" max="30" value="5" id="lineWidth" oninput="updateLineWidth(this.value)">
+                    <span id="width-display" class="text-xs text-slate-400 font-mono w-4">5</span>
+                </div>
+                
+                <div class="h-6 w-px bg-slate-600 mx-1"></div>
+                
+                <button onclick="setEraser()" class="btn-action text-slate-300 flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    橡皮擦
+                </button>
+                <button onclick="clearCanvas()" class="btn-action text-rose-400 hover:text-rose-300 border-rose-500/30">清空</button>
+                <button onclick="download()" class="btn-action btn-save flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    保存
+                </button>
             </div>
         </div>
 
-        <div class="relative flex-1 w-full flex justify-center items-center">
+        <div class="canvas-container relative flex-1 w-full flex justify-center items-center" id="container">
             <canvas id="canvas"></canvas>
+            
+            <!-- 笔刷预览圈 -->
+            <div id="brush-preview" class="absolute pointer-events-none rounded-full border border-black/30 shadow-[0_0_0_1px_rgba(255,255,255,0.5)] hidden" style="transform: translate(-50%, -50%);"></div>
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const container = document.getElementById('container');
+        const brushPreview = document.getElementById('brush-preview');
+        const widthDisplay = document.getElementById('width-display');
+        
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
         let strokeColor = 'black';
         let lineWidth = 5;
+        let isEraser = false;
 
+        // 初始化与调整大小
         function resize() {
-            const parent = canvas.parentElement;
-            canvas.width = parent.clientWidth;
-            canvas.height = parent.clientHeight;
+            // 保存当前画面
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // 调整大小
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            // 填充白底
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 恢复画面
+            if (tempCanvas.width > 0) {
+                ctx.drawImage(tempCanvas, 0, 0);
+            }
+            
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         }
         window.addEventListener('resize', resize);
-        resize();
+        // 延迟初始化确保容器大小已计算
+        setTimeout(resize, 100);
+
+        // 绘制逻辑
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return [clientX - rect.left, clientY - rect.top];
+        }
 
         function start(e) {
             isDrawing = true;
             [lastX, lastY] = getPos(e);
+            
+            // 点一下也能画个圆点
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, lineWidth / 2, 0, Math.PI * 2);
+            ctx.fillStyle = isEraser ? 'white' : strokeColor;
+            ctx.fill();
+            
+            updatePreviewPos(e);
         }
 
         function draw(e) {
+            updatePreviewPos(e);
             if (!isDrawing) return;
+            
             const [x, y] = getPos(e);
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(x, y);
-            ctx.strokeStyle = strokeColor;
+            ctx.strokeStyle = isEraser ? 'white' : strokeColor;
             ctx.lineWidth = lineWidth;
             ctx.stroke();
             [lastX, lastY] = [x, y];
@@ -79,41 +237,84 @@
             isDrawing = false;
         }
 
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return [clientX - rect.left, clientY - rect.top];
+        // 笔刷预览圈
+        function updatePreviewPos(e) {
+            if (e.touches) return; // 触屏不显示预览圈
+            const [x, y] = getPos(e);
+            brushPreview.style.left = x + 'px';
+            brushPreview.style.top = y + 'px';
         }
+        
+        canvas.addEventListener('mouseenter', () => brushPreview.style.display = 'block');
+        canvas.addEventListener('mouseleave', () => {
+            stop();
+            brushPreview.style.display = 'none';
+        });
 
+        // 鼠标事件
         canvas.addEventListener('mousedown', start);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stop);
-        canvas.addEventListener('mouseout', stop);
 
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
         canvas.addEventListener('touchend', stop);
 
+        // 工具栏功能
         function setColor(color, btn) {
+            isEraser = false;
             strokeColor = color;
-            if(btn) {
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            }
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            
+            // 更新容器发光颜色
+            document.documentElement.style.setProperty('--current-glow', color === 'black' ? 'rgba(255,255,255,0.1)' : color + '80');
+            
+            updateBrushPreview();
         }
 
+        function setCustomColor(color) {
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            isEraser = false;
+            strokeColor = color;
+            document.documentElement.style.setProperty('--current-glow', color + '80');
+            updateBrushPreview();
+        }
+
+        function setEraser() {
+            isEraser = true;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.documentElement.style.setProperty('--current-glow', 'rgba(255,255,255,0.5)');
+            updateBrushPreview();
+        }
+
+        function updateLineWidth(val) {
+            lineWidth = val;
+            widthDisplay.innerText = val;
+            updateBrushPreview();
+        }
+
+        function updateBrushPreview() {
+            brushPreview.style.width = lineWidth + 'px';
+            brushPreview.style.height = lineWidth + 'px';
+            brushPreview.style.backgroundColor = isEraser ? 'rgba(255,255,255,0.8)' : strokeColor;
+        }
+        updateBrushPreview();
+
         function clearCanvas() {
-            if(confirm('Clear drawing?')) {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
+            // 添加一个清空动画效果
+            container.style.transform = 'scale(0.98)';
+            setTimeout(() => container.style.transform = 'scale(1)', 150);
+            
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         function download() {
             const link = document.createElement('a');
-            link.download = 'my-drawing.png';
-            link.href = canvas.toDataURL();
+            link.download = 'neon-drawing-' + Date.now() + '.png';
+            link.href = canvas.toDataURL('image/png');
             link.click();
         }
     </script>
