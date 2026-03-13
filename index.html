@@ -66,6 +66,17 @@
             background-size: 200% auto; animation: gradientMove 5s ease infinite;
         }
         @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+        /* --- 鼠标光晕跟随 --- */
+        #cursor-glow {
+            position: fixed; top: 0; left: 0; width: 400px; height: 400px;
+            background: radial-gradient(circle closest-side, var(--glow-color), transparent);
+            transform: translate(-50%, -50%); border-radius: 50%;
+            pointer-events: none; z-index: -1; mix-blend-mode: screen; opacity: 0.6;
+            transition: width 0.3s, height 0.3s, opacity 0.3s;
+        }
+        #cursor-glow.active { width: 500px; height: 500px; opacity: 0.9; }
 
         .animate-fade-up { opacity: 0; transform: translateY(30px); animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
@@ -115,6 +126,7 @@
 
     <div id="bg-layer"></div>
     <div id="overlay-layer"></div>
+    <div id="cursor-glow"></div>
 
     <main class="w-full flex items-center justify-center p-4 md:p-8 z-10">
         <div class="glass-card w-[90%] md:w-full max-w-4xl rounded-3xl overflow-hidden animate-fade-up flex flex-col md:flex-row relative">
@@ -144,12 +156,13 @@
                     <h2 class="text-base md:text-lg font-semibold text-white mb-3 md:mb-5 flex items-center uppercase tracking-wider opacity-90">Explore</h2>
                     <div class="flex flex-col gap-2 md:gap-3">
                         
-                        <a href="http://ai.qinglvsuan.qzz.io" target="_blank" class="group flex items-center p-2.5 md:p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 card-theme-active">
-                            <div class="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all" style="background: var(--text-grad)">
+                        <a href="http://ge.qinglvsuan.qzz.io:50818" target="_blank" class="group flex items-center p-2.5 md:p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 card-theme-active relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                            <div class="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all relative z-10" style="background: var(--text-grad)">
                                 <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                             </div>
-                            <span class="ml-3 md:ml-4 text-base md:text-lg font-bold text-slate-200 theme-text transition-colors">AI Portal</span>
-                            <span class="ml-auto text-[10px] md:text-xs text-white/20 group-hover:text-white/80 tracking-wider font-medium">LAUNCH</span>
+                            <span class="ml-3 md:ml-4 text-base md:text-lg font-bold text-slate-200 theme-text transition-colors relative z-10">AI Portal</span>
+                            <span class="ml-auto text-[10px] md:text-xs text-white/20 group-hover:text-white/80 tracking-wider font-medium relative z-10">LAUNCH</span>
                         </a>
 
                         <a href="https://space.bilibili.com/478859104" target="_blank" class="group flex items-center p-2.5 md:p-3 pr-4 rounded-2xl bg-white/5 border border-white/5 transition-all duration-300 hover:bg-pink-500/10 hover:border-pink-500/30">
@@ -300,9 +313,22 @@
             const bgUrlInput = document.getElementById('bg-url-input');
             const changeBgBtn = document.getElementById('change-bg-btn');
             const resetBtn = document.getElementById('reset-btn');
+            const cursorGlow = document.getElementById('cursor-glow');
             
             const root = document.documentElement;
             const defaultBgUrl = 'images/2.png';
+
+            // --- 鼠标跟随效果 ---
+            document.addEventListener('mousemove', (e) => {
+                cursorGlow.style.left = e.clientX + 'px';
+                cursorGlow.style.top = e.clientY + 'px';
+            });
+            
+            const interactiveElements = document.querySelectorAll('a, button, .game-card-hover');
+            interactiveElements.forEach(el => {
+                el.addEventListener('mouseenter', () => cursorGlow.classList.add('active'));
+                el.addEventListener('mouseleave', () => cursorGlow.classList.remove('active'));
+            });
 
             const themes = {
                 pink: { primary: '#ec4899', hover: '#db2777', glass: 'rgba(25, 15, 35, 0.65)', grad: 'linear-gradient(to right, #ec4899, #d946ef, #8b5cf6)', glow: 'rgba(236, 72, 153, 0.5)', cardHoverBg: 'rgba(236, 72, 153, 0.1)', cardHoverBorder: 'rgba(236, 72, 153, 0.3)', textHighlight: '#f9a8d4' },
