@@ -67,7 +67,7 @@
         }
         @keyframes gradientMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
-        .animate-fade-up { opacity: 0; transform: translateY(40px); animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade-up { opacity: 0; transform: translateY(30px); animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 
         /* --- 设置面板 --- */
@@ -91,22 +91,23 @@
             transform: translateY(-5px);
             border-color: rgba(255, 255, 255, 0.3);
             background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.5), 0 0 15px var(--glow-color);
         }
 
         /* --- 按钮样式 --- */
-        .btn-primary { background-color: var(--primary); color: white; transition: all 0.2s; }
-        .btn-primary:hover { filter: brightness(1.1); }
+        .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s; }
+        .btn-primary:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 4px 15px var(--glow-color); }
         
         .icon-btn {
-            color: #e2e8f0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;
+            color: #e2e8f0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .icon-btn:hover {
-            background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 0 15px var(--glow-color);
+            background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 0 20px var(--glow-color); transform: scale(1.1);
         }
 
         /* --- 动态卡片悬停 (AI Card) --- */
-        .card-theme-active { transition: all 0.3s ease; }
-        .card-theme-active:hover { background-color: var(--card-hover-bg); border-color: var(--card-hover-border); }
+        .card-theme-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-theme-active:hover { background-color: var(--card-hover-bg); border-color: var(--card-hover-border); transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5), 0 0 15px var(--glow-color); }
         .card-theme-active:hover .theme-text { color: var(--text-highlight); }
     </style>
 </head>
@@ -116,10 +117,10 @@
     <div id="overlay-layer"></div>
 
     <main class="w-full flex items-center justify-center p-4 md:p-8 z-10">
-        <div class="glass-card w-[85%] md:w-full max-w-4xl rounded-3xl overflow-hidden animate-fade-up flex flex-col md:flex-row relative">
+        <div class="glass-card w-[90%] md:w-full max-w-4xl rounded-3xl overflow-hidden animate-fade-up flex flex-col md:flex-row relative">
             
-            <div class="md:w-2/5 relative group overflow-hidden flex flex-col items-center justify-center p-6 md:p-12 text-center border-b md:border-b-0 md:border-r border-white/10" 
-                 style="background: rgba(0,0,0,0.25)">
+            <div class="md:w-2/5 relative group overflow-hidden flex flex-col items-center justify-center p-8 md:p-12 text-center border-b md:border-b-0 md:border-r border-white/10" 
+                 style="background: rgba(0,0,0,0.3)">
                 <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" 
                      style="background: radial-gradient(circle at center, var(--glow-color) 0%, transparent 70%); opacity: 0.15;"></div>
                 <div class="relative mb-4 md:mb-8">
