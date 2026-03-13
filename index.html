@@ -127,6 +127,7 @@
     <div id="bg-layer"></div>
     <div id="overlay-layer"></div>
     <div id="cursor-glow"></div>
+    <canvas id="mouse-particles" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
 
     <main class="w-full flex items-center justify-center p-4 md:p-8 z-10">
         <div class="glass-card w-[90%] md:w-full max-w-4xl rounded-3xl overflow-hidden animate-fade-up flex flex-col md:flex-row relative">
@@ -323,6 +324,72 @@
                 cursorGlow.style.left = e.clientX + 'px';
                 cursorGlow.style.top = e.clientY + 'px';
             });
+
+            // --- 鼠标粒子特效 ---
+            const partCanvas = document.getElementById('mouse-particles');
+            const partCtx = partCanvas.getContext('2d');
+            let particlesArray = [];
+
+            function resizeParticles() {
+                partCanvas.width = window.innerWidth;
+                partCanvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeParticles);
+            resizeParticles();
+
+            const mouse = { x: null, y: null };
+            document.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                // 每次移动生成 2 个粒子
+                for (let i = 0; i < 2; i++) {
+                    particlesArray.push(new Particle());
+                }
+            });
+
+            class Particle {
+                constructor() {
+                    this.x = mouse.x;
+                    this.y = mouse.y;
+                    this.size = Math.random() * 4 + 1;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * 2 - 1;
+                    // 读取当前主题颜色
+                    this.color = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#ec4899';
+                    this.life = 1;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.size > 0.1) this.size -= 0.05;
+                    this.life -= 0.02;
+                }
+                draw() {
+                    partCtx.save();
+                    partCtx.globalAlpha = Math.max(0, this.life);
+                    partCtx.shadowBlur = 10;
+                    partCtx.shadowColor = this.color;
+                    partCtx.fillStyle = this.color;
+                    partCtx.beginPath();
+                    partCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    partCtx.fill();
+                    partCtx.restore();
+                }
+            }
+
+            function animateParticles() {
+                partCtx.clearRect(0, 0, partCanvas.width, partCanvas.height);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                    particlesArray[i].draw();
+                    if (particlesArray[i].life <= 0) {
+                        particlesArray.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animateParticles);
+            }
+            animateParticles();
             
             const interactiveElements = document.querySelectorAll('a, button, .game-card-hover');
             interactiveElements.forEach(el => {

@@ -10,51 +10,75 @@
     </style>
 </head>
 <body>
-    <div id="info">Click to Start | Mouse/Touch to Move</div>
-    <canvas id="gameCanvas" width="480" height="320"></canvas>
+    <div id="info" class="font-mono text-sm">Score: <span id="s-val" class="text-white">0</span> | Lives: <span id="l-val" class="text-white">3</span></div>
+    <div class="relative">
+        <canvas id="gameCanvas" width="480" height="320"></canvas>
+        <div id="msg-overlay" class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl cursor-pointer transition-opacity duration-300">
+            <span class="text-xl font-bold tracking-widest text-pink-400 animate-pulse">CLICK TO START</span>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        let ballRadius = 6;
-        let x = canvas.width / 2;
-        let y = canvas.height - 30;
-        let dx = 3;
-        let dy = -3;
+        const msgOverlay = document.getElementById("msg-overlay");
+        const sVal = document.getElementById("s-val");
+        const lVal = document.getElementById("l-val");
+
+        let ballRadius = 7;
+        let x, y, dx, dy;
         let paddleHeight = 10;
-        let paddleWidth = 75;
-        let paddleX = (canvas.width - paddleWidth) / 2;
-        let rightPressed = false;
-        let leftPressed = false;
-        let brickRowCount = 4;
-        let brickColumnCount = 6;
-        let brickWidth = 65;
-        let brickHeight = 20;
-        let brickPadding = 10;
-        let brickOffsetTop = 30;
-        let brickOffsetLeft = 20;
+        let paddleWidth = 80;
+        let paddleX;
+        
+        const brickRowCount = 5;
+        const brickColumnCount = 7;
+        const brickWidth = 55;
+        const brickHeight = 16;
+        const brickPadding = 8;
+        const brickOffsetTop = 40;
+        const brickOffsetLeft = 22;
+        
         let score = 0;
         let lives = 3;
         let isRunning = false;
+        let bricks = [];
 
-        const bricks = [];
-        for (let c = 0; c < brickColumnCount; c++) {
-            bricks[c] = [];
-            for (let r = 0; r < brickRowCount; r++) {
-                bricks[c][r] = { x: 0, y: 0, status: 1, color: `hsl(${c * 60}, 70%, 60%)` };
+        function initBricks() {
+            bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1, color: `hsl(${c * 50 + r * 10}, 70%, 60%)` };
+                }
             }
         }
 
+        function resetBall() {
+            x = canvas.width / 2;
+            y = canvas.height - 35;
+            // 降低初始速度
+            dx = 2.5;
+            dy = -2.5;
+            paddleX = (canvas.width - paddleWidth) / 2;
+        }
+
         document.addEventListener("mousemove", mouseMoveHandler, false);
-        canvas.addEventListener("click", () => { if(!isRunning) { isRunning = true; draw(); } });
+        msgOverlay.addEventListener("click", start);
+        
         document.addEventListener("touchmove", (e) => {
+            if(!isRunning) return;
             e.preventDefault();
-            const relativeX = e.touches[0].clientX - canvas.offsetLeft;
-            if (relativeX > 0 && relativeX < canvas.width) paddleX = relativeX - paddleWidth / 2;
+            const rect = canvas.getBoundingClientRect();
+            const relativeX = e.touches[0].clientX - rect.left;
+            if (relativeX > 0 && relativeX < canvas.width) {
+                paddleX = relativeX - paddleWidth / 2;
+            }
         }, {passive: false});
 
         function mouseMoveHandler(e) {
-            const relativeX = e.clientX - canvas.offsetLeft;
+            const rect = canvas.getBoundingClientRect();
+            const relativeX = e.clientX - rect.left;
             if (relativeX > 0 && relativeX < canvas.width) {
                 paddleX = relativeX - paddleWidth / 2;
             }
@@ -65,13 +89,19 @@
                 for (let r = 0; r < brickRowCount; r++) {
                     const b = bricks[c][r];
                     if (b.status == 1) {
-                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                        if (x + ballRadius > b.x && x - ballRadius < b.x + brickWidth && y + ballRadius > b.y && y - ballRadius < b.y + brickHeight) {
                             dy = -dy;
                             b.status = 0;
                             score++;
+                            sVal.innerText = score;
+                            // Add slight speed increase, cap it
+                            dx *= 1.01; dy *= 1.01;
+                            const maxSpeed = 4.5;
+                            if (Math.abs(dx) > maxSpeed) dx = maxSpeed * Math.sign(dx);
+                            if (Math.abs(dy) > maxSpeed) dy = maxSpeed * Math.sign(dy);
+                            
                             if (score == brickRowCount * brickColumnCount) {
-                                alert("YOU WIN, CONGRATS!");
-                                document.location.reload();
+                                endGame(true);
                             }
                         }
                     }
@@ -80,21 +110,26 @@
         }
 
         function drawBall() {
+            ctx.save();
             ctx.beginPath();
             ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#22d3ee";
-            ctx.shadowBlur = 10; ctx.shadowColor = "#22d3ee";
+            ctx.fillStyle = "#fff";
+            ctx.shadowBlur = 12; ctx.shadowColor = "#22d3ee";
             ctx.fill();
             ctx.closePath();
-            ctx.shadowBlur = 0;
+            ctx.restore();
         }
 
         function drawPaddle() {
+            ctx.save();
             ctx.beginPath();
-            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            // Rounded paddle
+            ctx.roundRect(paddleX, canvas.height - paddleHeight - 5, paddleWidth, paddleHeight, 5);
             ctx.fillStyle = "#d946ef";
+            ctx.shadowBlur = 10; ctx.shadowColor = "#d946ef";
             ctx.fill();
             ctx.closePath();
+            ctx.restore();
         }
 
         function drawBricks() {
@@ -105,56 +140,49 @@
                         const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
                         bricks[c][r].x = brickX;
                         bricks[c][r].y = brickY;
+                        ctx.save();
                         ctx.beginPath();
-                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 3);
                         ctx.fillStyle = bricks[c][r].color;
                         ctx.fill();
                         ctx.closePath();
+                        ctx.restore();
                     }
                 }
             }
         }
 
-        function drawScore() {
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText("Score: " + score, 8, 20);
-        }
-
-        function drawLives() {
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText("Lives: " + lives, canvas.width - 65, 20);
-        }
-
         function draw() {
             if(!isRunning) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Subtle grid
+            ctx.strokeStyle = "rgba(255,255,255,0.03)";
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
             drawBricks();
             drawBall();
             drawPaddle();
-            drawScore();
-            drawLives();
             collisionDetection();
 
+            // Wall Bounce
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) { dx = -dx; }
             if (y + dy < ballRadius) { dy = -dy; }
-            else if (y + dy > canvas.height - ballRadius) {
+            else if (y + dy > canvas.height - ballRadius - 5) {
                 if (x > paddleX && x < paddleX + paddleWidth) {
                     dy = -dy;
-                    // 加点旋转物理效果
-                    dx = 8 * ((x - (paddleX + paddleWidth / 2)) / paddleWidth);
-                } else {
+                    // Physics based on where it hits the paddle
+                    let deltaX = x - (paddleX + paddleWidth / 2);
+                    dx = deltaX * 0.15;
+                } else if (y + dy > canvas.height - ballRadius) {
                     lives--;
+                    lVal.innerText = lives;
                     if (!lives) {
-                        alert("GAME OVER");
-                        document.location.reload();
+                        endGame(false);
                     } else {
-                        x = canvas.width / 2;
-                        y = canvas.height - 30;
-                        dx = 3;
-                        dy = -3;
-                        paddleX = (canvas.width - paddleWidth) / 2;
+                        resetBall();
                     }
                 }
             }
@@ -163,9 +191,30 @@
             y += dy;
             requestAnimationFrame(draw);
         }
+
+        function start() {
+            score = 0; lives = 3;
+            sVal.innerText = 0; lVal.innerText = 3;
+            initBricks();
+            resetBall();
+            isRunning = true;
+            msgOverlay.style.opacity = "0";
+            setTimeout(() => msgOverlay.style.display = "none", 300);
+            draw();
+        }
+
+        function endGame(win) {
+            isRunning = false;
+            msgOverlay.style.display = "flex";
+            setTimeout(() => msgOverlay.style.opacity = "1", 10);
+            msgOverlay.innerHTML = `<div class="text-center"><p class="text-2xl font-bold ${win ? 'text-green-400' : 'text-red-500'}">${win ? 'VICTORY!' : 'GAME OVER'}</p><p class="text-slate-400 text-sm mt-2">Score: ${score}</p><p class="text-pink-400 font-bold mt-4">CLICK TO RESTART</p></div>`;
+        }
         
-        // 初始渲染
-        drawBricks(); drawPaddle(); drawScore(); drawLives(); drawBall();
+        initBricks();
+        resetBall();
+        // Initial render
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBricks(); drawPaddle(); drawBall();
     </script>
 </body>
 </html>
