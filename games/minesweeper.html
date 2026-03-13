@@ -5,72 +5,74 @@
     <title>Minesweeper</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0f172a; color: white; display: flex; flex-col; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
-        .cell { width: 30px; height: 30px; background: #334155; border: 1px solid #475569; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold; user-select: none; }
-        .cell:hover { background: #475569; }
-        .cell.revealed { background: #1e293b; border-color: #1e293b; }
-        .cell.bomb { background: #ef4444; }
-        .cell.flagged { color: #f59e0b; }
+        body { background: #0f172a; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Inter', sans-serif; }
+        .cell { width: 32px; height: 32px; background: #334155; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: center; align-items: center; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800; user-select: none; }
+        .cell:hover:not(.revealed) { background: #475569; }
+        .cell.revealed { background: #1e293b; border-color: #1e293b; cursor: default; }
+        .cell.bomb { background: #f43f5e; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .cell.flagged { color: #f59e0b; text-shadow: 0 0 5px rgba(245, 158, 11, 0.5); }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+        .animate-shake { animation: shake 0.1s ease-in-out infinite; }
     </style>
 </head>
 <body class="flex flex-col">
-    <h2 class="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500">MINESWEEPER</h2>
-    <div class="mb-4 flex gap-6 text-slate-400 text-sm font-mono">
-        <div>💣 <span id="bomb-counter">00</span></div>
-        <div>⏱️ <span id="timer">000</span></div>
+    <h2 class="text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500 tracking-wider text-center">MINESWEEPER</h2>
+    <div class="flex justify-center gap-6 mb-4 text-slate-400 text-xs font-mono">
+        <div>BOMBS: <span id="bomb-count" class="text-red-400">0</span></div>
+        <div>TIME: <span id="timer" class="text-cyan-400">0</span>s</div>
     </div>
-    <div id="grid" class="grid grid-cols-10 gap-1 bg-slate-800 p-2 rounded-xl shadow-2xl border border-white/5"></div>
-    <div class="flex gap-4">
-        <button onclick="init()" class="mt-6 px-6 py-2 bg-pink-600 hover:bg-pink-500 rounded-full text-white transition font-bold shadow-lg shadow-pink-900/20">Reset</button>
+    <div id="grid" class="grid grid-cols-10 gap-1 bg-slate-800/50 border border-white/10 p-2 rounded-xl shadow-2xl backdrop-blur-sm"></div>
+    <div class="flex justify-center gap-4 mt-6">
+        <button onclick="init()" class="px-8 py-2 bg-pink-600 hover:bg-pink-500 rounded-full text-white font-bold transition-all hover:scale-105 shadow-lg shadow-pink-500/20">Reset</button>
     </div>
+    <p class="mt-4 text-[10px] text-slate-500 uppercase tracking-tighter text-center">Left Click: Reveal | Right Click: Flag</p>
 
     <script>
         const gridEl = document.getElementById('grid');
-        const bombCounterEl = document.getElementById('bomb-counter');
+        const bombCountEl = document.getElementById('bomb-count');
         const timerEl = document.getElementById('timer');
-        
         const size = 10;
-        const bombCount = 12;
+        const totalBombs = 12;
         let cells = [];
         let gameOver = false;
         let timer = 0;
         let timerInterval = null;
-        let flagsPlaced = 0;
-        let revealedCount = 0;
+        let firstClick = true;
 
         function init() {
             gridEl.innerHTML = '';
             cells = [];
             gameOver = false;
+            firstClick = true;
             timer = 0;
-            revealedCount = 0;
-            flagsPlaced = 0;
+            timerEl.innerText = '0';
+            bombCountEl.innerText = totalBombs;
             if(timerInterval) clearInterval(timerInterval);
-            timerEl.innerText = '000';
-            bombCounterEl.innerText = bombCount.toString().padStart(2, '0');
             
-            // 生成格子
             for(let i=0; i<size*size; i++) {
                 const cell = document.createElement('div');
-                cell.classList.add('cell', 'rounded-sm', 'transition-all', 'duration-200');
+                cell.classList.add('cell', 'rounded-sm', 'transition-colors', 'duration-200');
                 cell.dataset.id = i;
                 cell.addEventListener('click', () => handleClick(i));
                 cell.addEventListener('contextmenu', (e) => { e.preventDefault(); handleRightClick(i); });
                 gridEl.appendChild(cell);
                 cells.push({ element: cell, isBomb: false, revealed: false, flagged: false, neighborBombs: 0 });
             }
+        }
 
-            // 埋雷
+        function placeBombs(safeIdx) {
             let bombsPlaced = 0;
-            while(bombsPlaced < bombCount) {
+            const neighbors = getNeighbors(safeIdx);
+            neighbors.push(safeIdx); 
+
+            while(bombsPlaced < totalBombs) {
                 let idx = Math.floor(Math.random() * cells.length);
-                if(!cells[idx].isBomb) {
+                if(!cells[idx].isBomb && !neighbors.includes(idx)) {
                     cells[idx].isBomb = true;
                     bombsPlaced++;
                 }
             }
 
-            // 计算数字
             for(let i=0; i<cells.length; i++) {
                 if(!cells[i].isBomb) {
                     let count = 0;
@@ -78,15 +80,6 @@
                     cells[i].neighborBombs = count;
                 }
             }
-        }
-
-        function startTimer() {
-            if (timerInterval) return;
-            timerInterval = setInterval(() => {
-                timer++;
-                timerEl.innerText = timer.toString().padStart(3, '0');
-                if (timer >= 999) clearInterval(timerInterval);
-            }, 1000);
         }
 
         function getNeighbors(idx) {
@@ -103,85 +96,68 @@
             return neighbors;
         }
 
-        function handleClick(idx) {
+        function handleClick(id) {
             if(gameOver) return;
-            startTimer();
-            const cell = cells[idx];
+            if(firstClick) {
+                firstClick = false;
+                placeBombs(id);
+                timerInterval = setInterval(() => { timer++; timerEl.innerText = timer; }, 1000);
+            }
+            
+            const cell = cells[id];
             if(cell.flagged || cell.revealed) return;
 
             if(cell.isBomb) {
-                cell.element.classList.add('bomb', 'scale-110', 'z-10');
+                cell.element.classList.add('bomb', 'animate-shake');
                 cell.element.innerHTML = '💥';
                 endGame(false);
             } else {
-                reveal(idx);
+                reveal(id);
                 checkWin();
             }
         }
 
-        function handleRightClick(idx) {
-            if(gameOver) return;
-            startTimer();
-            const cell = cells[idx];
-            if(cell.revealed) return;
-            
+        function handleRightClick(id) {
+            if(gameOver || cells[id].revealed) return;
+            const cell = cells[id];
             cell.flagged = !cell.flagged;
-            flagsPlaced += cell.flagged ? 1 : -1;
-            bombCounterEl.innerText = Math.max(0, bombCount - flagsPlaced).toString().padStart(2, '0');
-            
             cell.element.classList.toggle('flagged');
             cell.element.innerHTML = cell.flagged ? '🚩' : '';
-            cell.element.style.color = cell.flagged ? '#fbbf24' : '';
+            
+            const flaggedCount = cells.filter(c => c.flagged).length;
+            bombCountEl.innerText = Math.max(0, totalBombs - flaggedCount);
         }
 
         function reveal(id) {
             const cell = cells[id];
             if(cell.revealed || cell.flagged) return;
-            
             cell.revealed = true;
-            revealedCount++;
             cell.element.classList.add('revealed');
             
             if(cell.neighborBombs > 0) {
                 cell.element.innerHTML = cell.neighborBombs;
-                // 霓虹配色
-                const colors = ['#22d3ee', '#4ade80', '#fbbf24', '#f87171', '#a855f7', '#ec4899', '#ffffff', '#94a3b8'];
+                const colors = ['#22d3ee', '#a3e635', '#fbbf24', '#f87171', '#ec4899', '#a855f7', '#fff', '#000'];
                 cell.element.style.color = colors[cell.neighborBombs-1];
-                cell.element.style.textShadow = `0 0 8px ${colors[cell.neighborBombs-1]}44`;
             } else {
-                // 递归打开空白区域
                 getNeighbors(id).forEach(n => reveal(n));
             }
         }
 
         function checkWin() {
-            if (revealedCount === size * size - bombCount) {
-                endGame(true);
-            }
+            const win = cells.every(c => c.isBomb || c.revealed);
+            if(win) endGame(true);
         }
 
         function endGame(isWin) {
             gameOver = true;
             clearInterval(timerInterval);
-            timerInterval = null;
-            
             cells.forEach(c => {
                 if(c.isBomb) {
-                    if (!isWin && !c.flagged) {
-                        c.element.classList.add('revealed');
-                        c.element.innerHTML = '💣';
-                    } else if (isWin) {
-                        c.element.innerHTML = '🚩';
-                        c.element.classList.add('flagged');
-                    }
-                } else if (c.flagged && !c.isBomb) {
-                    c.element.innerHTML = '❌';
+                    c.element.classList.add('revealed');
+                    if(!c.flagged) c.element.innerHTML = isWin ? '🚩' : '💣';
                 }
             });
-
-            setTimeout(() => {
-                alert(isWin ? `CONGRATULATIONS! Time: ${timer}s` : 'GAME OVER! You hit a mine.');
-            }, 100);
+            setTimeout(() => alert(isWin ? 'VICTORY! Time: ' + timer + 's' : 'DEFEAT!'), 100);
         }
 
         init();
