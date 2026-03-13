@@ -11,12 +11,15 @@
 </head>
 <body class="flex flex-col items-center justify-center h-screen p-4">
     <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500 mb-2 animate-pulse">NEON SNAKE</h2>
-    <div class="text-sm text-slate-400 mb-4 font-mono">Score: <span id="score-val" class="text-pink-400 font-bold text-lg">0</span></div>
+    <div class="flex gap-8 mb-4 font-mono text-sm">
+        <div class="text-slate-400">SCORE: <span id="score-val" class="text-pink-400 font-bold text-lg">0</span></div>
+        <div class="text-slate-400">BEST: <span id="high-score" class="text-purple-400 font-bold text-lg">0</span></div>
+    </div>
     
     <div class="relative">
         <canvas id="game-canvas" width="400" height="400"></canvas>
-        <div id="start-overlay" class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-xl cursor-pointer">
-            <p class="text-purple-300 text-xl font-bold mb-2">Click to Start</p>
+        <div id="start-overlay" class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-opacity duration-300">
+            <p id="overlay-title" class="text-purple-300 text-xl font-bold mb-2">Click to Start</p>
             <p class="text-slate-400 text-sm">Use WASD or Arrow Keys</p>
         </div>
     </div>
@@ -25,79 +28,195 @@
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         const scoreVal = document.getElementById('score-val');
+        const highScoreVal = document.getElementById('high-score');
         const startOverlay = document.getElementById('start-overlay');
+        const overlayTitle = document.getElementById('overlay-title');
 
-        let snake, food, dx, dy, score, gameInterval;
+        let snake, food, dx, dy, score, gameTimeout;
         let isRunning = false;
-        const gridSize = 20; // 20x20 grid
-        const tileCount = canvas.width / gridSize; // 20
+        let speed = 150;
+        let highScore = localStorage.getItem('snake-high-score') || 0;
+        highScoreVal.innerText = highScore;
 
-        const drawRect = (x, y, color, shadow) => {
-            ctx.fillStyle = color; ctx.shadowBlur = shadow ? 15 : 0; ctx.shadowColor = shadow || color;
-            // 留1px边距让网格显现
-            ctx.fillRect(x * gridSize + 1, y * gridSize + 1, gridSize - 2, gridSize - 2);
-            ctx.shadowBlur = 0;
+        const gridSize = 20; 
+        const tileCount = canvas.width / gridSize; 
+
+        const drawRect = (x, y, color, shadow, radius = 4) => {
+            ctx.save();
+            ctx.fillStyle = color;
+            if (shadow) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadow;
+            }
+            // Rounded corners
+            const px = x * gridSize + 1;
+            const py = y * gridSize + 1;
+            const size = gridSize - 2;
+            
+            ctx.beginPath();
+            ctx.roundRect(px, py, size, size, radius);
+            ctx.fill();
+            ctx.restore();
         };
 
         const init = () => {
-            snake = [{x: 10, y: 10}]; food = {x: 5, y: 5};
-            dx = 0; dy = 0; score = 0; scoreVal.innerText = 0;
-            placeFood(); isRunning = false; startOverlay.style.display = 'flex';
-            if(gameInterval) clearInterval(gameInterval);
+            snake = [
+                {x: 10, y: 10},
+                {x: 9, y: 10},
+                {x: 8, y: 10}
+            ];
+            dx = 1; dy = 0; 
+            score = 0; 
+            speed = 150;
+            scoreVal.innerText = 0;
+            placeFood(); 
+            isRunning = false; 
+            startOverlay.style.display = 'flex';
+            startOverlay.style.opacity = '1';
+            if(gameTimeout) clearTimeout(gameTimeout);
             draw();
         };
 
         const placeFood = () => {
-            food.x = Math.floor(Math.random() * tileCount);
-            food.y = Math.floor(Math.random() * tileCount);
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+            // Prevent food from spawning on snake
             if(snake.some(part => part.x === food.x && part.y === food.y)) placeFood();
         };
 
-        const update = () => {
+        const gameLoop = () => {
             if(!isRunning) return;
+            
             const head = {x: snake[0].x + dx, y: snake[0].y + dy};
-            // 穿墙
-            if(head.x < 0) head.x = tileCount - 1; if(head.x >= tileCount) head.x = 0;
-            if(head.y < 0) head.y = tileCount - 1; if(head.y >= tileCount) head.y = 0;
-            // 撞自己
-            if(dx!==0 || dy!==0) { if(snake.some(part => part.x === head.x && part.y === head.y)) { init(); return; }}
+            
+            // Collision: Walls
+            if(head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+            
+            // Collision: Self
+            if(snake.some(part => part.x === head.x && part.y === head.y)) {
+                gameOver();
+                return;
+            }
             
             snake.unshift(head);
-            if(head.x === food.x && head.y === food.y) { score += 10; scoreVal.innerText = score; placeFood(); } 
-            else { snake.pop(); }
+            
+            // Eat food
+            if(head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreVal.innerText = score;
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreVal.innerText = highScore;
+                    localStorage.setItem('snake-high-score', highScore);
+                }
+                // Speed up
+                speed = Math.max(60, 150 - Math.floor(score / 50) * 10);
+                placeFood();
+            } else {
+                snake.pop();
+            }
+            
             draw();
+            gameTimeout = setTimeout(gameLoop, speed);
         };
 
         const draw = () => {
-            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height); // 清屏
-            // 画食物 (粉色霓虹)
-            drawRect(food.x, food.y, '#ec4899', '#ec4899');
-            // 画蛇 (紫->青渐变)
+            // Dark Background
+            ctx.fillStyle = '#1e293b'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid lines (subtle)
+            ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=tileCount; i++) {
+                ctx.beginPath(); ctx.moveTo(i*gridSize, 0); ctx.lineTo(i*gridSize, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i*gridSize); ctx.lineTo(canvas.width, i*gridSize); ctx.stroke();
+            }
+
+            // Draw Food
+            drawRect(food.x, food.y, '#fb7185', '#ec4899', 10); // Rounder food
+            
+            // Draw Snake
             snake.forEach((part, i) => {
-                const color = i === 0 ? '#d946ef' : (i % 2 === 0 ? '#a855f7' : '#8b5cf6'); // 头是亮紫，身体交替
-                drawRect(part.x, part.y, color, i===0 ? '#d946ef' : null);
+                // Gradient effect from head to tail
+                const ratio = i / snake.length;
+                const color = i === 0 ? '#d946ef' : `rgba(168, 85, 247, ${1 - ratio * 0.6})`;
+                drawRect(part.x, part.y, color, i === 0 ? '#d946ef' : null, i === 0 ? 6 : 4);
             });
         };
 
-        // 控制
+        const gameOver = () => {
+            isRunning = false;
+            overlayTitle.innerText = "GAME OVER";
+            overlayTitle.classList.add('text-red-400');
+            startOverlay.style.display = 'flex';
+            setTimeout(() => { startOverlay.style.opacity = '1'; }, 10);
+        };
+
+        const start = () => {
+            if(isRunning) return;
+            overlayTitle.classList.remove('text-red-400');
+            overlayTitle.innerText = "Click to Start";
+            isRunning = true;
+            startOverlay.style.opacity = '0';
+            setTimeout(() => { startOverlay.style.display = 'none'; }, 300);
+            gameLoop();
+        };
+
+        // Controls
         document.addEventListener('keydown', e => {
-            if(!isRunning && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
-                isRunning = true; startOverlay.style.display = 'none';
-                // 速度设置在这里：200ms (数字越大越慢)
-                gameInterval = setInterval(update, 200); 
+            if(!isRunning && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d',' '].includes(e.key)) {
+                if(startOverlay.style.display !== 'none') {
+                    if (overlayTitle.innerText === "GAME OVER") init();
+                    start();
+                }
             }
-            switch(e.key) {
-                case 'ArrowUp': case 'w': if(dy !== 1) { dx=0; dy=-1; } break;
-                case 'ArrowDown': case 's': if(dy !== -1) { dx=0; dy=1; } break;
-                case 'ArrowLeft': case 'a': if(dx !== 1) { dx=-1; dy=0; } break;
-                case 'ArrowRight': case 'd': if(dx !== -1) { dx=1; dy=0; } break;
-            }
-        });
-        startOverlay.addEventListener('click', () => {
-            if(!isRunning) { isRunning = true; startOverlay.style.display = 'none'; dx=1; dy=0; gameInterval = setInterval(update, 200); }
+            
+            const key = e.key.toLowerCase();
+            if ((key === 'arrowup' || key === 'w') && dy === 0) { dx = 0; dy = -1; }
+            if ((key === 'arrowdown' || key === 's') && dy === 0) { dx = 0; dy = 1; }
+            if ((key === 'arrowleft' || key === 'a') && dx === 0) { dx = -1; dy = 0; }
+            if ((key === 'arrowright' || key === 'd') && dx === 0) { dx = 1; dy = 0; }
         });
 
-        init(); // 启动
-    </script>
+        startOverlay.addEventListener('click', () => {
+            if (overlayTitle.innerText === "GAME OVER") init();
+            start();
+        });
+
+        // Touch support
+        let touchStartX = 0;
+        let touchStartY = 0;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault();
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', e => {
+            if(!isRunning) return;
+            const dx_touch = e.touches[0].clientX - touchStartX;
+            const dy_touch = e.touches[0].clientY - touchStartY;
+            
+            if (Math.abs(dx_touch) > Math.abs(dy_touch)) {
+                if (Math.abs(dx_touch) > 30) {
+                    if (dx_touch > 0 && dx === 0) { dx = 1; dy = 0; }
+                    else if (dx_touch < 0 && dx === 0) { dx = -1; dy = 0; }
+                }
+            } else {
+                if (Math.abs(dy_touch) > 30) {
+                    if (dy_touch > 0 && dy === 0) { dx = 0; dy = 1; }
+                    else if (dy_touch < 0 && dy === 0) { dx = 0; dy = -1; }
+                }
+            }
+            e.preventDefault();
+        }, {passive: false});
+
+        init();
 </body>
 </html>
